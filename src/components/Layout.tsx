@@ -7,6 +7,8 @@ const navItems = [
   { to: '/collaborators', label: 'Hồ sơ cộng tác viên', end: false },
 ];
 
+const adminNavItems = [{ to: '/users', label: 'Quản lý người dùng', end: false }];
+
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -15,6 +17,8 @@ export default function Layout({ children }: { children: ReactNode }) {
     logout();
     navigate('/login', { replace: true });
   };
+
+  const items = user?.role === 'admin' ? [...navItems, ...adminNavItems] : navItems;
 
   return (
     <div className="flex min-h-screen bg-page">
@@ -25,7 +29,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           <span className="whitespace-nowrap text-sm font-semibold text-slate-800">Quản lý CTV</span>
         </div>
         <nav className="flex-1 space-y-1 p-4">
-          {navItems.map((item) => (
+          {items.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -49,7 +53,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div />
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-600">
-              Xin chào, <span className="font-medium text-slate-900">{user?.displayName}</span>
+              Xin chào, <span className="font-medium text-slate-900">{user?.name}</span>
             </span>
             <button
               onClick={handleLogout}

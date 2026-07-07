@@ -1,78 +1,57 @@
-import seedData from '../../data/collaborators.json';
 import type { Collaborator, CollaboratorInput } from '../../types/collaborator';
-import { ApiError, delay, readStore, writeStore } from './client';
+import { apiFetch, downloadFile } from './client';
 
-const STORE_KEY = 'bmk_ctv_collaborators';
-
-function getAll(): Collaborator[] {
-  return readStore<Collaborator[]>(STORE_KEY, seedData as Collaborator[]);
+export interface ImportResult {
+  updatedCount: number;
+  updated: string[];
+  notFoundCount: number;
+  notFound: string[];
 }
 
-function saveAll(items: Collaborator[]): void {
-  writeStore(STORE_KEY, items);
-}
-
-// GET /api/collaborators
 export async function listCollaborators(): Promise<Collaborator[]> {
-  return delay(getAll());
+  return apiFetch<Collaborator[]>('/collaborators');
 }
 
-// GET /api/collaborators/:employeeCode
 export async function getCollaborator(employeeCode: string): Promise<Collaborator> {
-  const found = getAll().find((item) => item.employeeCode === employeeCode);
-  if (!found) throw new ApiError(404, `Không tìm thấy cộng tác viên "${employeeCode}"`);
-  return delay(found);
+  return apiFetch<Collaborator>(`/collaborators/${encodeURIComponent(employeeCode)}`);
 }
 
-// POST /api/collaborators
 export async function createCollaborator(input: CollaboratorInput): Promise<Collaborator> {
-  const items = getAll();
-  if (!input.employeeCode.trim()) {
-    throw new ApiError(400, 'Mã nhân viên là bắt buộc');
-  }
-  if (items.some((item) => item.employeeCode === input.employeeCode)) {
-    throw new ApiError(409, `Mã nhân viên "${input.employeeCode}" đã tồn tại`);
-  }
-  const now = new Date().toISOString();
-  const created: Collaborator = { ...input, createdAt: now, updatedAt: now };
-  saveAll([...items, created]);
-  return delay(created);
+  return apiFetch<Collaborator>('/collaborators', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
 }
 
-// PUT /api/collaborators/:employeeCode
 export async function updateCollaborator(
   originalEmployeeCode: string,
   input: CollaboratorInput,
 ): Promise<Collaborator> {
-  const items = getAll();
-  const index = items.findIndex((item) => item.employeeCode === originalEmployeeCode);
-  if (index === -1) {
-    throw new ApiError(404, `Không tìm thấy cộng tác viên "${originalEmployeeCode}"`);
-  }
-  if (
-    input.employeeCode !== originalEmployeeCode &&
-    items.some((item) => item.employeeCode === input.employeeCode)
-  ) {
-    throw new ApiError(409, `Mã nhân viên "${input.employeeCode}" đã tồn tại`);
-  }
-  const updated: Collaborator = {
-    ...input,
-    createdAt: items[index].createdAt,
-    updatedAt: new Date().toISOString(),
-  };
-  const next = [...items];
-  next[index] = updated;
-  saveAll(next);
-  return delay(updated);
+  return apiFetch<Collaborator>(`/collaborators/${encodeURIComponent(originalEmployeeCode)}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
 }
 
-// DELETE /api/collaborators/:employeeCode
 export async function deleteCollaborator(employeeCode: string): Promise<void> {
-  const items = getAll();
-  const next = items.filter((item) => item.employeeCode !== employeeCode);
-  if (next.length === items.length) {
-    throw new ApiError(404, `Không tìm thấy cộng tác viên "${employeeCode}"`);
-  }
-  saveAll(next);
-  return delay(undefined);
+  return apiFetch<void>(`/collaborators/${encodeURIComponent(employeeCode)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function downloadImportTemplate(): Promise<void> {
+  return downloadFile('/collaborators/template', 'mau_import_checklist_ctv.xlsx');
+}
+
+export async function exportCollaborators(): Promise<void> {
+  return downloadFile('/collaborators/export', 'danh_sach_ctv.xlsx');
+}
+
+export async function importCollaborators(file: File): Promise<ImportResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiFetch<ImportResult>('/collaborators/import', {
+    method: 'POST',
+    body: formData,
+  });
 }

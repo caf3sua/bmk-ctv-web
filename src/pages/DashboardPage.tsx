@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
+import DonutChart from '../components/charts/DonutChart';
+import GrowthChart from '../components/charts/GrowthChart';
 import { listCollaborators } from '../services/api/collaborators';
 import type { Collaborator } from '../types/collaborator';
 import { getMissingItems, isChecklistComplete } from '../utils/checklist';
+import { buildGrowthSeries, getRecentActivity } from '../utils/dashboard';
+import { formatRelativeTime } from '../utils/date';
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export default function DashboardPage() {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -18,6 +24,10 @@ export default function DashboardPage() {
   const total = collaborators.length;
   const complete = collaborators.filter((c) => isChecklistComplete(c.checklist)).length;
   const incomplete = total - complete;
+  const newLast30Days = collaborators.filter((c) => {
+    const created = new Date(c.createdAt).getTime();
+    return !Number.isNaN(created) && Date.now() - created <= THIRTY_DAYS_MS;
+  }).length;
 
   const missingByItem = new Map<string, number>();
   collaborators.forEach((c) => {
@@ -25,11 +35,17 @@ export default function DashboardPage() {
       missingByItem.set(item.label, (missingByItem.get(item.label) ?? 0) + 1);
     });
   });
+  const sortedMissing = [...missingByItem.entries()].sort((a, b) => b[1] - a[1]);
+  const maxMissing = Math.max(...sortedMissing.map(([, count]) => count), 1);
+
+  const growthSeries = useMemo(() => buildGrowthSeries(collaborators), [collaborators]);
+  const recentActivity = useMemo(() => getRecentActivity(collaborators, 5), [collaborators]);
 
   const stats = [
     { label: 'Tổng số cộng tác viên', value: total, accent: 'text-slate-900' },
     { label: 'Hồ sơ đã nộp đủ', value: complete, accent: 'text-accent' },
     { label: 'Hồ sơ còn thiếu', value: incomplete, accent: 'text-warning' },
+    { label: 'Mới trong 30 ngày qua', value: newLast30Days, accent: 'text-primary' },
   ];
 
   return (
@@ -41,7 +57,7 @@ export default function DashboardPage() {
         <p className="mt-6 text-sm text-slate-500">Đang tải dữ liệu...</p>
       ) : (
         <>
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {stats.map((stat) => (
               <div key={stat.label} className="rounded-2xl border border-border-subtle bg-white p-5 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{stat.label}</p>
@@ -50,28 +66,84 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="rounded-2xl border border-border-subtle bg-white p-5 shadow-sm lg:col-span-2">
+              <h2 className="text-lg font-semibold text-slate-900">Tăng trưởng cộng tác viên</h2>
+              <p className="mt-1 text-xs text-slate-500">Tổng số hồ sơ cộng dồn theo tháng</p>
+              <div className="mt-4">
+                <GrowthChart data={growthSeries} />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border-subtle bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-900">Tỉ lệ hồ sơ đầy đủ</h2>
+              <div className="mt-4">
+                <DonutChart
+                  centerValue={`${total > 0 ? Math.round((complete / total) * 100) : 0}%`}
+                  centerLabel="đầy đủ"
+                  segments={[
+                    { label: 'Đã nộp đủ', value: complete, color: 'var(--color-accent)' },
+                    { label: 'Còn thiếu', value: incomplete, color: 'var(--color-warning)' },
+                  ]}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="rounded-2xl border border-border-subtle bg-white p-5 shadow-sm">
               <h2 className="text-lg font-semibold text-slate-900">Mục hồ sơ còn thiếu nhiều nhất</h2>
-              {missingByItem.size === 0 ? (
+              {sortedMissing.length === 0 ? (
                 <p className="mt-3 text-sm text-slate-500">Tất cả hồ sơ đã đầy đủ.</p>
               ) : (
-                <ul className="mt-3 space-y-2">
-                  {[...missingByItem.entries()]
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([label, count]) => (
-                      <li key={label} className="flex items-center justify-between text-sm">
+                <ul className="mt-4 space-y-3">
+                  {sortedMissing.map(([label, count]) => (
+                    <li key={label}>
+                      <div className="flex items-center justify-between text-sm">
                         <span className="text-slate-600">{label}</span>
                         <span className="font-mono font-semibold text-warning">{count}</span>
-                      </li>
-                    ))}
+                      </div>
+                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-page">
+                        <div
+                          className="h-full rounded-full bg-warning"
+                          style={{ width: `${(count / maxMissing) * 100}%` }}
+                        />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-border-subtle bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-900">Hoạt động gần đây</h2>
+              {recentActivity.length === 0 ? (
+                <p className="mt-3 text-sm text-slate-500">Chưa có hoạt động nào.</p>
+              ) : (
+                <ul className="mt-4 space-y-3">
+                  {recentActivity.map((c) => (
+                    <li key={c.employeeCode} className="flex items-center justify-between gap-3 text-sm">
+                      <div className="min-w-0">
+                        <Link
+                          to={`/collaborators/${c.employeeCode}`}
+                          className="block truncate font-medium text-slate-800 hover:text-primary hover:underline"
+                        >
+                          {c.fullName || c.employeeCode}
+                        </Link>
+                        <p className="truncate font-mono text-xs text-slate-400">{c.employeeCode}</p>
+                      </div>
+                      <span className="whitespace-nowrap text-xs text-slate-400">
+                        {formatRelativeTime(c.updatedAt)}
+                      </span>
+                    </li>
+                  ))}
                 </ul>
               )}
             </div>
 
             <div className="rounded-2xl border border-border-subtle bg-white p-5 shadow-sm">
               <h2 className="text-lg font-semibold text-slate-900">Truy cập nhanh</h2>
-              <div className="mt-3 flex flex-col gap-2">
+              <div className="mt-4 flex flex-col gap-2">
                 <Link
                   to="/collaborators"
                   className="rounded-lg border border-border-subtle px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"

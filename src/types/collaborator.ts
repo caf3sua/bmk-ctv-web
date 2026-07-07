@@ -1,11 +1,12 @@
-export interface ServiceContract {
+export interface ServiceContractPeriod {
   startDate: string | null;
   endDate: string | null;
 }
 
 export interface Checklist {
   submittedIdCard: boolean;
-  serviceContract: ServiceContract;
+  // Có thể có nhiều hợp đồng dịch vụ theo thời gian; luôn giữ tối thiểu 1 phần tử.
+  serviceContracts: ServiceContractPeriod[];
   submittedTaxCommitment: boolean;
   liquidationDate: string | null;
   submittedCV: boolean;
@@ -31,7 +32,7 @@ export type CollaboratorInput = Omit<Collaborator, 'createdAt' | 'updatedAt'>;
 
 export const emptyChecklist = (): Checklist => ({
   submittedIdCard: false,
-  serviceContract: { startDate: null, endDate: null },
+  serviceContracts: [{ startDate: null, endDate: null }],
   submittedTaxCommitment: false,
   liquidationDate: null,
   submittedCV: false,

@@ -12,7 +12,7 @@ export function getChecklistItems(checklist: Checklist): ChecklistItem[] {
     {
       key: 'serviceContract',
       label: 'Hợp đồng dịch vụ',
-      done: Boolean(checklist.serviceContract.startDate),
+      done: checklist.serviceContracts.some((period) => Boolean(period.startDate)),
     },
     { key: 'taxCommitment', label: 'Cam kết thuế', done: checklist.submittedTaxCommitment },
     { key: 'cv', label: 'CV', done: checklist.submittedCV },
