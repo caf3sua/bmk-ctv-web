@@ -7,7 +7,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -27,8 +27,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const loggedInUser = await authService.loginWithGoogle(idToken);
         setUser(loggedInUser);
       },
-      logout: () => {
-        authService.logout();
+      logout: async () => {
+        await authService.logout();
         setUser(null);
       },
     }),

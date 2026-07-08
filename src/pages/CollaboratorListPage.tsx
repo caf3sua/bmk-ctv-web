@@ -81,10 +81,13 @@ export default function CollaboratorListPage() {
     try {
       const result = await importCollaborators(file);
       const parts = [`Đã cập nhật ${result.updatedCount} hồ sơ.`];
-      if (result.notFoundCount > 0) {
-        parts.push(`Không tìm thấy ${result.notFoundCount} mã: ${result.notFound.join(', ')}.`);
+      if (result.createdCount > 0) {
+        parts.push(`Đã tạo mới ${result.createdCount} hồ sơ: ${result.created.join(', ')}.`);
       }
-      setImportMessage({ text: parts.join(' '), tone: result.notFoundCount > 0 ? 'warning' : 'success' });
+      if (result.dateErrorCount > 0) {
+        parts.push(`Có ${result.dateErrorCount} lỗi định dạng ngày: ${result.dateErrors.join('; ')}.`);
+      }
+      setImportMessage({ text: parts.join(' '), tone: result.dateErrorCount > 0 ? 'warning' : 'success' });
       load();
     } catch (err) {
       setImportMessage({

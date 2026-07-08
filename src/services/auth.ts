@@ -36,7 +36,13 @@ export async function loginWithGoogle(idToken: string): Promise<AuthUser> {
   return result.user;
 }
 
-export function logout(): void {
+export async function logout(): Promise<void> {
+  try {
+    // Ghi nhật ký hệ thống; JWT không cần hủy phía server nên bỏ qua lỗi mạng nếu có.
+    await apiFetch('/auth/logout', { method: 'POST' });
+  } catch {
+    // Vẫn đăng xuất phía client dù gọi API thất bại.
+  }
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
 }

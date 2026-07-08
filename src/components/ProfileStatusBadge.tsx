@@ -4,6 +4,7 @@ import { getChecklistProgress, isChecklistComplete } from '../utils/checklist';
 export default function ProfileStatusBadge({ checklist }: { checklist: Checklist }) {
   const complete = isChecklistComplete(checklist);
   const { done, total } = getChecklistProgress(checklist);
+  const missing = total - done;
 
   return (
     <span
@@ -12,7 +13,7 @@ export default function ProfileStatusBadge({ checklist }: { checklist: Checklist
       }`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${complete ? 'bg-accent' : 'bg-warning'}`} />
-      {complete ? 'Đã nộp đủ' : `Còn thiếu (${done}/${total})`}
+      {complete ? 'Đã nộp đủ' : `Còn thiếu (${missing}/${total})`}
     </span>
   );
 }

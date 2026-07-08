@@ -44,9 +44,3 @@ export function buildGrowthSeries(items: Collaborator[]): GrowthPoint[] {
 
   return series;
 }
-
-export function getRecentActivity(items: Collaborator[], limit = 5): Collaborator[] {
-  return [...items]
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, limit);
-}

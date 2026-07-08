@@ -4,8 +4,10 @@ import { apiFetch, downloadFile } from './client';
 export interface ImportResult {
   updatedCount: number;
   updated: string[];
-  notFoundCount: number;
-  notFound: string[];
+  createdCount: number;
+  created: string[];
+  dateErrorCount: number;
+  dateErrors: string[];
 }
 
 export async function listCollaborators(): Promise<Collaborator[]> {

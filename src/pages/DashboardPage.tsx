@@ -3,21 +3,29 @@ import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import DonutChart from '../components/charts/DonutChart';
 import GrowthChart from '../components/charts/GrowthChart';
+import ActivityResultBadge from '../components/ActivityResultBadge';
 import { listCollaborators } from '../services/api/collaborators';
+import { listActivityLogs } from '../services/api/activityLogs';
 import type { Collaborator } from '../types/collaborator';
+import type { ActivityLog } from '../types/activityLog';
 import { getMissingItems, isChecklistComplete } from '../utils/checklist';
-import { buildGrowthSeries, getRecentActivity } from '../utils/dashboard';
+import { buildGrowthSeries } from '../utils/dashboard';
 import { formatRelativeTime } from '../utils/date';
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const RECENT_ACTIVITY_LIMIT = 5;
 
 export default function DashboardPage() {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    listCollaborators()
-      .then(setCollaborators)
+    Promise.all([listCollaborators(), listActivityLogs()])
+      .then(([collaboratorsResult, activityLogsResult]) => {
+        setCollaborators(collaboratorsResult);
+        setActivityLogs(activityLogsResult);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -39,7 +47,7 @@ export default function DashboardPage() {
   const maxMissing = Math.max(...sortedMissing.map(([, count]) => count), 1);
 
   const growthSeries = useMemo(() => buildGrowthSeries(collaborators), [collaborators]);
-  const recentActivity = useMemo(() => getRecentActivity(collaborators, 5), [collaborators]);
+  const recentActivity = activityLogs.slice(0, RECENT_ACTIVITY_LIMIT);
 
   const stats = [
     { label: 'Tổng số cộng tác viên', value: total, accent: 'text-slate-900' },
@@ -121,19 +129,16 @@ export default function DashboardPage() {
                 <p className="mt-3 text-sm text-slate-500">Chưa có hoạt động nào.</p>
               ) : (
                 <ul className="mt-4 space-y-3">
-                  {recentActivity.map((c) => (
-                    <li key={c.employeeCode} className="flex items-center justify-between gap-3 text-sm">
+                  {recentActivity.map((log) => (
+                    <li key={log.id} className="flex items-start justify-between gap-3 text-sm">
                       <div className="min-w-0">
-                        <Link
-                          to={`/collaborators/${c.employeeCode}`}
-                          className="block truncate font-medium text-slate-800 hover:text-primary hover:underline"
-                        >
-                          {c.fullName || c.employeeCode}
-                        </Link>
-                        <p className="truncate font-mono text-xs text-slate-400">{c.employeeCode}</p>
+                        <p className="truncate text-slate-800">{log.message}</p>
+                        <div className="mt-1">
+                          <ActivityResultBadge result={log.result} />
+                        </div>
                       </div>
                       <span className="whitespace-nowrap text-xs text-slate-400">
-                        {formatRelativeTime(c.updatedAt)}
+                        {formatRelativeTime(log.createdAt)}
                       </span>
                     </li>
                   ))}

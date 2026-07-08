@@ -15,6 +15,7 @@ export function getChecklistItems(checklist: Checklist): ChecklistItem[] {
       done: checklist.serviceContracts.some((period) => Boolean(period.startDate)),
     },
     { key: 'taxCommitment', label: 'Cam kết thuế', done: checklist.submittedTaxCommitment },
+    { key: 'liquidation', label: 'Biên bản thanh lý', done: Boolean(checklist.liquidationDate) },
     { key: 'cv', label: 'CV', done: checklist.submittedCV },
     { key: 'residenceInfo', label: 'Thông tin cư trú', done: checklist.submittedResidenceInfo },
     { key: 'degree', label: 'Bằng cấp', done: checklist.submittedDegree },

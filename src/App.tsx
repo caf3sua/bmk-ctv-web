@@ -8,6 +8,7 @@ import CollaboratorListPage from './pages/CollaboratorListPage';
 import CollaboratorDetailPage from './pages/CollaboratorDetailPage';
 import UserListPage from './pages/UserListPage';
 import UserDetailPage from './pages/UserDetailPage';
+import SystemLogsPage from './pages/SystemLogsPage';
 
 export default function App() {
   return (
@@ -52,6 +53,14 @@ export default function App() {
             element={
               <AdminRoute>
                 <UserDetailPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/system-logs"
+            element={
+              <AdminRoute>
+                <SystemLogsPage />
               </AdminRoute>
             }
           />
