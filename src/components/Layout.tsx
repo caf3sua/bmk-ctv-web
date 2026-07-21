@@ -12,6 +12,7 @@ const adminNavGroup = {
   items: [
     { to: '/users', label: 'Quản lý người dùng', end: false },
     { to: '/system-logs', label: 'Nhật ký hệ thống', end: false },
+    { to: '/upload-history', label: 'Lịch sử Upload file', end: false },
   ],
 };
 

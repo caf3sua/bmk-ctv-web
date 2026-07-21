@@ -12,9 +12,18 @@ export class ApiError extends Error {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api';
 const TOKEN_KEY = 'bmk_ctv_token';
+const USER_KEY = 'bmk_ctv_user';
 
 function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
+}
+
+function checkUnauthorized(status: number, path: string): void {
+  if (status === 401 && !path.startsWith('/auth/login') && !path.startsWith('/auth/google')) {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    window.location.href = '/login';
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -49,6 +58,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   }
 
   if (!response.ok) {
+    checkUnauthorized(response.status, path);
     const detail = isRecord(data) && typeof data.detail === 'string' ? data.detail : undefined;
     throw new ApiError(response.status, detail ?? 'Đã xảy ra lỗi, vui lòng thử lại');
   }
@@ -69,6 +79,7 @@ export async function downloadFile(path: string, filename: string): Promise<void
   }
 
   if (!response.ok) {
+    checkUnauthorized(response.status, path);
     let detail: string | undefined;
     try {
       const data = await response.json();

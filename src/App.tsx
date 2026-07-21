@@ -9,6 +9,7 @@ import CollaboratorDetailPage from './pages/CollaboratorDetailPage';
 import UserListPage from './pages/UserListPage';
 import UserDetailPage from './pages/UserDetailPage';
 import SystemLogsPage from './pages/SystemLogsPage';
+import UploadHistoryPage from './pages/UploadHistoryPage';
 
 export default function App() {
   return (
@@ -61,6 +62,14 @@ export default function App() {
             element={
               <AdminRoute>
                 <SystemLogsPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/upload-history"
+            element={
+              <AdminRoute>
+                <UploadHistoryPage />
               </AdminRoute>
             }
           />
