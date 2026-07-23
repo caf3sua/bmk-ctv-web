@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
@@ -30,7 +30,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `block rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-      isActive ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+      isActive ? 'bg-white/10 text-gold' : 'text-white/70 hover:bg-white/10 hover:text-white'
     }`;
 
   return (
@@ -44,21 +44,21 @@ export default function Layout({ children }: { children: ReactNode }) {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border-subtle bg-white transition-transform duration-200 ease-in-out lg:static lg:z-auto lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r-0 bg-house-green text-white transition-transform duration-200 ease-in-out lg:static lg:z-auto lg:translate-x-0 ${
           mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex h-16 items-center justify-between gap-3 border-b border-border-subtle px-6">
+        <div className="flex h-16 items-center justify-between gap-3 border-b border-white/10 px-6">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-bold tracking-widest text-primary">BMK</span>
-            <span className="h-4 w-px bg-border-subtle" />
-            <span className="whitespace-nowrap text-sm font-semibold text-slate-800">Quản lý CTV</span>
+            <span className="text-sm font-bold tracking-widest text-gold font-serif">BMK</span>
+            <span className="h-4 w-px bg-white/20" />
+            <span className="whitespace-nowrap text-sm font-semibold text-white">Quản lý CTV</span>
           </div>
           <button
             type="button"
             onClick={closeMobileNav}
             aria-label="Đóng menu"
-            className="rounded-lg p-1 text-slate-500 hover:bg-slate-100 lg:hidden"
+            className="rounded-lg p-1 text-white/70 hover:bg-white/10 lg:hidden"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -74,7 +74,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
           {user?.role === 'admin' && (
             <div className="pt-4">
-              <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-white/40">
                 {adminNavGroup.label}
               </p>
               {adminNavGroup.items.map((item) => (
@@ -88,7 +88,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 flex-shrink-0 items-center justify-between gap-3 border-b border-border-subtle bg-white px-4 lg:px-6">
+        <header className="flex h-16 flex-shrink-0 items-center justify-between gap-3 bg-white px-4 shadow-nav lg:px-6">
           <button
             type="button"
             onClick={() => setMobileNavOpen(true)}
@@ -102,17 +102,26 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div className="hidden lg:block" />
           <div className="flex items-center gap-2 sm:gap-4">
             <span className="hidden text-sm text-slate-600 sm:inline">
-              Xin chào, <span className="font-medium text-slate-900">{user?.name}</span>
+              Xin chào, <span className="font-semibold text-slate-900">{user?.name}</span>
             </span>
             <button
               onClick={handleLogout}
-              className="rounded-lg border border-border-subtle px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              className="btn-outline-dark px-4 py-1.5 text-xs"
             >
               Đăng xuất
             </button>
           </div>
         </header>
         <main className="min-w-0 flex-1 p-4 lg:p-6">{children}</main>
+        <Link
+          to="/collaborators/new"
+          className="btn-frap"
+          title="Thêm cộng tác viên mới"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-6 w-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+        </Link>
       </div>
     </div>
   );

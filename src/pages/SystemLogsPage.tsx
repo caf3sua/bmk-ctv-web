@@ -72,7 +72,7 @@ export default function SystemLogsPage() {
     <Layout>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Nhật ký hệ thống</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-primary">Nhật ký hệ thống</h1>
           <p className="mt-1 text-sm text-slate-500">
             {filtered.length} / {logs.length} bản ghi hoạt động
           </p>
@@ -80,20 +80,22 @@ export default function SystemLogsPage() {
         <button
           type="button"
           onClick={load}
-          className="rounded-lg border border-border-subtle px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          className="btn-secondary px-4 py-2"
         >
           Làm mới
         </button>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-3">
-        <input
-          type="text"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          placeholder="Tìm theo họ tên, tên đăng nhập, nội dung..."
-          className="input w-full max-w-sm"
-        />
+      <div className="mt-4 flex flex-wrap gap-3 p-4 rounded-2xl border border-border-subtle/60 bg-white shadow-card">
+        <div className="min-w-[220px] flex-1">
+          <input
+            type="text"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="Tìm theo họ tên, tên đăng nhập, nội dung..."
+            className="input"
+          />
+        </div>
         <select
           value={actionFilter}
           onChange={(e) => setActionFilter(e.target.value as ActionFilter)}
@@ -131,8 +133,8 @@ export default function SystemLogsPage() {
         </select>
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-2xl border border-border-subtle bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-border-subtle text-sm">
+      <div className="mt-4 overflow-x-auto rounded-2xl border border-border-subtle/60 bg-white shadow-card">
+        <table className="min-w-full divide-y divide-border-subtle/60 text-sm">
           <thead className="bg-page">
             <tr>
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Thời gian</th>
@@ -143,32 +145,32 @@ export default function SystemLogsPage() {
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nội dung</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border-subtle">
+          <tbody className="divide-y divide-border-subtle/60">
             {loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-500 font-medium">
                   Đang tải dữ liệu...
                 </td>
               </tr>
             )}
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-500 font-medium">
                   Không tìm thấy bản ghi nào.
                 </td>
               </tr>
             )}
             {!loading &&
               pageItems.map((log) => (
-                <tr key={log.id} className="hover:bg-page">
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-500">{formatDateTime(log.createdAt)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-800">{actionLabel(log.action)}</td>
+                <tr key={log.id} className="hover:bg-ceramic/40 transition-colors">
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-500 font-mono text-xs">{formatDateTime(log.createdAt)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-850 font-semibold">{actionLabel(log.action)}</td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <ActivityResultBadge result={log.result} />
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-800">{log.fullName || '—'}</td>
-                  <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-600">{log.username || '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">{log.message}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-800 font-medium">{log.fullName || '—'}</td>
+                  <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-600 text-xs">{log.username || '—'}</td>
+                  <td className="px-4 py-3 text-slate-600 font-medium">{log.message}</td>
                 </tr>
               ))}
           </tbody>
@@ -177,7 +179,7 @@ export default function SystemLogsPage() {
 
       {!loading && filtered.length > 0 && (
         <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 font-medium">
             Hiển thị {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filtered.length)} trên{' '}
             {filtered.length} bản ghi
           </p>

@@ -58,16 +58,16 @@ export default function DashboardPage() {
 
   return (
     <Layout>
-      <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+      <h1 className="text-3xl font-bold tracking-tight text-primary">Dashboard</h1>
       <p className="mt-1 text-sm text-slate-500">Tổng quan tình trạng hồ sơ cộng tác viên</p>
 
       {loading ? (
-        <p className="mt-6 text-sm text-slate-500">Đang tải dữ liệu...</p>
+        <p className="mt-6 text-sm text-slate-500 font-medium">Đang tải dữ liệu...</p>
       ) : (
         <>
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {stats.map((stat) => (
-              <div key={stat.label} className="rounded-2xl border border-border-subtle bg-white p-5 shadow-sm">
+              <div key={stat.label} className="rounded-2xl border border-border-subtle/60 bg-white p-5 shadow-card">
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{stat.label}</p>
                 <p className={`mt-2 font-mono text-3xl font-bold ${stat.accent}`}>{stat.value}</p>
               </div>
@@ -75,16 +75,16 @@ export default function DashboardPage() {
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <div className="rounded-2xl border border-border-subtle bg-white p-5 shadow-sm lg:col-span-2">
-              <h2 className="text-lg font-semibold text-slate-900">Tăng trưởng cộng tác viên</h2>
+            <div className="rounded-2xl border border-border-subtle/60 bg-white p-5 shadow-card lg:col-span-2">
+              <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Tăng trưởng cộng tác viên</h2>
               <p className="mt-1 text-xs text-slate-500">Tổng số hồ sơ cộng dồn theo tháng</p>
               <div className="mt-4">
                 <GrowthChart data={growthSeries} />
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border-subtle bg-white p-5 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">Tỉ lệ hồ sơ đầy đủ</h2>
+            <div className="rounded-2xl border border-border-subtle/60 bg-white p-5 shadow-card">
+              <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Tỉ lệ hồ sơ đầy đủ</h2>
               <div className="mt-4">
                 <DonutChart
                   centerValue={`${total > 0 ? Math.round((complete / total) * 100) : 0}%`}
@@ -99,8 +99,8 @@ export default function DashboardPage() {
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <div className="rounded-2xl border border-border-subtle bg-white p-5 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">Mục hồ sơ còn thiếu nhiều nhất</h2>
+            <div className="rounded-2xl border border-border-subtle/60 bg-white p-5 shadow-card">
+              <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Mục hồ sơ còn thiếu nhiều nhất</h2>
               {sortedMissing.length === 0 ? (
                 <p className="mt-3 text-sm text-slate-500">Tất cả hồ sơ đã đầy đủ.</p>
               ) : (
@@ -108,7 +108,7 @@ export default function DashboardPage() {
                   {sortedMissing.map(([label, count]) => (
                     <li key={label}>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">{label}</span>
+                        <span className="text-slate-600 font-medium">{label}</span>
                         <span className="font-mono font-semibold text-warning">{count}</span>
                       </div>
                       <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-page">
@@ -123,21 +123,21 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="rounded-2xl border border-border-subtle bg-white p-5 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">Hoạt động gần đây</h2>
+            <div className="rounded-2xl border border-border-subtle/60 bg-white p-5 shadow-card">
+              <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Hoạt động gần đây</h2>
               {recentActivity.length === 0 ? (
-                <p className="mt-3 text-sm text-slate-500">Chưa có hoạt động nào.</p>
+                <p className="mt-3 text-sm text-slate-500 font-medium">Chưa có hoạt động nào.</p>
               ) : (
                 <ul className="mt-4 space-y-3">
                   {recentActivity.map((log) => (
                     <li key={log.id} className="flex items-start justify-between gap-3 text-sm">
                       <div className="min-w-0">
-                        <p className="truncate text-slate-800">{log.message}</p>
+                        <p className="truncate text-slate-800 font-medium">{log.message}</p>
                         <div className="mt-1">
                           <ActivityResultBadge result={log.result} />
                         </div>
                       </div>
-                      <span className="whitespace-nowrap text-xs text-slate-400">
+                      <span className="whitespace-nowrap text-xs text-slate-400 font-mono">
                         {formatRelativeTime(log.createdAt)}
                       </span>
                     </li>
@@ -146,18 +146,18 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="rounded-2xl border border-border-subtle bg-white p-5 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">Truy cập nhanh</h2>
-              <div className="mt-4 flex flex-col gap-2">
+            <div className="rounded-2xl border border-border-subtle/60 bg-white p-5 shadow-card">
+              <h2 className="text-lg font-semibold text-slate-900 tracking-tight">Truy cập nhanh</h2>
+              <div className="mt-6 flex flex-col gap-3">
                 <Link
                   to="/collaborators"
-                  className="rounded-lg border border-border-subtle px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  className="btn-secondary w-full"
                 >
-                  Xem danh sách hồ sơ cộng tác viên
+                  Xem danh sách hồ sơ CTV
                 </Link>
                 <Link
                   to="/collaborators/new"
-                  className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+                  className="btn-primary w-full"
                 >
                   + Thêm cộng tác viên mới
                 </Link>

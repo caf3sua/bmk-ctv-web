@@ -1,16 +1,34 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Lora", Georgia, serif;
+  --font-script: "Kalam", cursive;
 
-  --color-primary: #004f9f;
-  --color-primary-dark: #0b3a70;
-  --color-accent: #0d9488;
-  --color-page: #f8fafc;
-  --color-border-subtle: #e2e8f0;
-  --color-danger: #ef4444;
-  --color-warning: #f59e0b;
+  /* Starbucks Colors */
+  --color-primary: #006241; /* Starbucks Green */
+  --color-primary-dark: #1E3932; /* House Green */
+  --color-accent: #00754A; /* Green Accent */
+  --color-page: #f2f0eb; /* Neutral Warm canvas */
+  --color-border-subtle: #edebe9; /* Ceramic */
+  --color-danger: #c82014; /* Red */
+  --color-warning: #fbbc05; /* Yellow */
+
+  /* Additional Custom Colors */
+  --color-starbucks-green: #006241;
+  --color-green-accent: #00754A;
+  --color-house-green: #1E3932;
+  --color-green-uplift: #2b5148;
+  --color-green-light: #d4e9e2;
+  --color-gold: #cba258;
+  --color-gold-light: #dfc49d;
+  --color-gold-lightest: #faf6ee;
+  --color-ceramic: #edebe9;
+
+  /* Custom Elevation Shadows */
+  --shadow-card: 0px 0px 0.5px 0px rgba(0, 0, 0, 0.14), 0px 1px 1px 0px rgba(0, 0, 0, 0.24);
+  --shadow-nav: 0 1px 3px rgba(0, 0, 0, 0.1), 0 2px 2px rgba(0, 0, 0, 0.06), 0 0 2px rgba(0, 0, 0, 0.07);
+  --shadow-frap: 0 0 6px rgba(0, 0, 0, 0.24), 0 8px 12px rgba(0, 0, 0, 0.14);
 }
 
 html, body, #root {
@@ -20,11 +38,40 @@ html, body, #root {
 body {
   margin: 0;
   font-family: var(--font-sans);
+  letter-spacing: -0.01em;
   background-color: var(--color-page);
+  color: rgba(0, 0, 0, 0.87); /* Text Black */
 }
 
 @layer components {
+  /* Common inputs with 12px/8px roundness & accent focus states */
   .input {
-    @apply w-full rounded-lg border border-border-subtle px-3 py-2 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary;
+    @apply w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm text-slate-800 bg-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-all duration-200;
+  }
+
+  /* Starbucks Custom Pill Buttons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-full bg-accent text-white px-5 py-2.5 text-sm font-semibold border border-accent hover:bg-accent/95 hover:shadow-sm active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-full bg-transparent text-accent px-5 py-2.5 text-sm font-semibold border border-accent hover:bg-slate-100 active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:pointer-events-none;
+  }
+
+  .btn-dark {
+    @apply inline-flex items-center justify-center rounded-full bg-black text-white px-5 py-2.5 text-sm font-semibold border border-black hover:bg-black/90 hover:shadow-sm active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:pointer-events-none;
+  }
+
+  .btn-outline-dark {
+    @apply inline-flex items-center justify-center rounded-full bg-transparent text-slate-800 px-5 py-2.5 text-sm font-semibold border border-slate-800/80 hover:bg-slate-100 active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:pointer-events-none;
+  }
+
+  .btn-danger-outline {
+    @apply inline-flex items-center justify-center rounded-full bg-transparent text-danger px-5 py-2.5 text-sm font-semibold border border-danger/40 hover:bg-danger/5 active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:pointer-events-none;
+  }
+
+  /* Specific Floating Frap Button */
+  .btn-frap {
+    @apply fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-frap active:scale-95 transition-all duration-200 hover:bg-accent/95 cursor-pointer;
   }
 }

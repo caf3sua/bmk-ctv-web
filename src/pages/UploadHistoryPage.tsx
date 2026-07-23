@@ -73,7 +73,7 @@ export default function UploadHistoryPage() {
     <Layout>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Lịch sử Upload file</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-primary">Lịch sử Upload file</h1>
           <p className="mt-1 text-sm text-slate-500">
             {filtered.length} / {histories.length} tệp tin đã upload
           </p>
@@ -81,20 +81,22 @@ export default function UploadHistoryPage() {
         <button
           type="button"
           onClick={load}
-          className="rounded-lg border border-border-subtle px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          className="btn-secondary px-4 py-2"
         >
           Làm mới
         </button>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-3">
-        <input
-          type="text"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          placeholder="Tìm theo tên file, người upload, thông báo..."
-          className="input w-full max-w-sm"
-        />
+      <div className="mt-4 flex flex-wrap gap-3 p-4 rounded-2xl border border-border-subtle/60 bg-white shadow-card">
+        <div className="min-w-[220px] flex-1">
+          <input
+            type="text"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="Tìm theo tên file, người upload, thông báo..."
+            className="input"
+          />
+        </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as 'all' | 'success' | 'fail')}
@@ -117,8 +119,8 @@ export default function UploadHistoryPage() {
         </select>
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-2xl border border-border-subtle bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-border-subtle text-sm">
+      <div className="mt-4 overflow-x-auto rounded-2xl border border-border-subtle/60 bg-white shadow-card">
+        <table className="min-w-full divide-y divide-border-subtle/60 text-sm">
           <thead className="bg-page">
             <tr>
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Thời gian</th>
@@ -130,31 +132,31 @@ export default function UploadHistoryPage() {
               <th className="whitespace-nowrap px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">Hành động</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border-subtle">
+          <tbody className="divide-y divide-border-subtle/60">
             {loading && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-500 font-medium">
                   Đang tải dữ liệu...
                 </td>
               </tr>
             )}
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-500 font-medium">
                   Không tìm thấy lịch sử upload nào.
                 </td>
               </tr>
             )}
             {!loading &&
               pageItems.map((history) => (
-                <tr key={history.id} className="hover:bg-page">
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-500">{formatDateTime(history.createdAt)}</td>
-                  <td className="px-4 py-3 font-medium text-slate-800">
+                <tr key={history.id} className="hover:bg-ceramic/40 transition-colors">
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-500 font-mono text-xs">{formatDateTime(history.createdAt)}</td>
+                  <td className="px-4 py-3 font-semibold text-slate-800">
                     <div className="flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5 text-emerald-600 flex-shrink-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5 text-accent flex-shrink-0">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m6.75 12-3-3m0 0-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                       </svg>
-                      <span className="truncate max-w-[200px] block" title={history.filename}>
+                      <span className="truncate max-w-[200px] block text-sm" title={history.filename}>
                         {history.filename}
                       </span>
                     </div>
@@ -163,16 +165,16 @@ export default function UploadHistoryPage() {
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold leading-5 ${
                         history.status === 'success'
-                          ? 'bg-green-50 text-green-700 border border-green-200'
-                          : 'bg-red-50 text-red-700 border border-red-200'
+                          ? 'bg-accent/10 text-accent border border-accent/20'
+                          : 'bg-danger/10 text-danger border border-danger/20'
                       }`}
                     >
-                      <span className={`h-1.5 w-1.5 rounded-full ${history.status === 'success' ? 'bg-green-600' : 'bg-red-600'}`} />
+                      <span className={`h-1.5 w-1.5 rounded-full ${history.status === 'success' ? 'bg-accent' : 'bg-danger'}`} />
                       {history.status === 'success' ? 'Thành công' : 'Thất bại'}
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-slate-800">
-                    <div className="text-sm font-medium">{history.uploadedBy}</div>
+                    <div className="text-sm font-semibold">{history.uploadedBy}</div>
                     <div className="text-xs text-slate-500 font-mono">@{history.username}</div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-slate-800">
@@ -182,8 +184,8 @@ export default function UploadHistoryPage() {
                           {history.rowsProcessed} dòng
                         </div>
                         <div className="text-xs text-slate-500">
-                          Mới: <span className="text-green-600 font-medium">{history.createdCount}</span> | Sửa:{' '}
-                          <span className="text-blue-600 font-medium">{history.updatedCount}</span>
+                          Mới: <span className="text-accent font-semibold">{history.createdCount}</span> | Sửa:{' '}
+                          <span className="text-amber-800 font-semibold">{history.updatedCount}</span>
                         </div>
                       </div>
                     ) : (
@@ -197,7 +199,7 @@ export default function UploadHistoryPage() {
                     {history.message.includes('\n') && (
                       <button
                         onClick={() => toggleExpand(history.id)}
-                        className="text-xs text-primary hover:underline mt-1 block font-medium"
+                        className="text-xs text-primary font-semibold hover:underline mt-1 block cursor-pointer"
                       >
                         {expandedIds[history.id] ? 'Thu gọn' : 'Xem chi tiết'}
                       </button>
@@ -208,13 +210,11 @@ export default function UploadHistoryPage() {
                       type="button"
                       disabled={downloadingId !== null}
                       onClick={() => handleDownload(history.id, history.filename)}
-                      className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-border-subtle bg-white text-slate-700 shadow-sm hover:bg-slate-50 ${
-                        downloadingId !== null ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
+                      className="btn-secondary py-1.5 px-3 text-xs"
                     >
                       {downloadingId === history.id ? (
                         <>
-                          <svg className="animate-spin -ml-1 mr-1.5 h-3.5 w-3.5 text-slate-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <svg className="animate-spin -ml-1 mr-1.5 h-3 w-3 text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
@@ -222,7 +222,7 @@ export default function UploadHistoryPage() {
                         </>
                       ) : (
                         <>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-3.5 w-3.5">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-3 w-3 mr-1 inline">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                           </svg>
                           Tải file
@@ -238,7 +238,7 @@ export default function UploadHistoryPage() {
 
       {!loading && filtered.length > 0 && (
         <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 font-medium">
             Hiển thị {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filtered.length)} trên{' '}
             {filtered.length} tệp tin
           </p>

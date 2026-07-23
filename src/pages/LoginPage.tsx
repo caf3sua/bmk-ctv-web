@@ -94,38 +94,40 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen font-sans">
       <div className="relative hidden w-[45%] flex-col justify-between bg-primary-dark px-12 py-10 text-white lg:flex">
         <div className="flex items-center gap-3">
-          <img src="/logo_bmk_white.svg" alt="BMK" className="h-7 w-auto" />
-          <span className="h-4 w-px bg-white/30" />
-          <span className="text-sm font-semibold">Quản lý CTV</span>
+          <span className="text-xl font-bold tracking-widest text-gold font-serif">BMK</span>
+          <span className="h-4 w-px bg-white/20" />
+          <span className="text-sm font-medium text-white/80">Quản lý CTV</span>
         </div>
 
         <div>
-          <h1 className="text-4xl font-bold leading-tight">
+          <h1 className="text-5xl font-serif leading-tight text-gold">
             Quản lý hồ sơ
             <br />
-            cộng tác viên tập trung
+            cộng tác viên
+            <br />
+            tập trung
           </h1>
-          <p className="mt-4 max-w-sm text-sm text-white/70">
+          <p className="mt-6 max-w-sm text-sm text-white/70 leading-relaxed">
             Theo dõi hồ sơ, checklist giấy tờ và tình trạng hợp đồng của cộng tác viên trên một nền
             tảng duy nhất.
           </p>
         </div>
 
-        <p className="text-xs text-white/50">Nội bộ · dữ liệu được lưu trữ an toàn</p>
+        <p className="text-xs text-white/40">Nội bộ · dữ liệu được lưu trữ an toàn</p>
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center bg-page px-4 py-12">
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-card border border-border-subtle/50">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <img src="/logo_bmk.png" alt="BMK" className="h-7 w-auto" />
+            <span className="text-xl font-bold tracking-widest text-primary font-serif">BMK</span>
             <span className="h-4 w-px bg-slate-300" />
             <span className="text-sm font-semibold text-slate-800">Quản lý CTV</span>
           </div>
 
-          <h2 className="text-2xl font-bold text-slate-900">Đăng nhập</h2>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Đăng nhập</h2>
           <p className="mt-1 text-sm text-slate-500">Tiếp tục vào hệ thống quản lý hồ sơ cộng tác viên</p>
 
           {error && (
@@ -134,7 +136,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div>
-              <label htmlFor="username" className="mb-1 block text-sm font-medium text-slate-700">
+              <label htmlFor="username" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Tên đăng nhập
               </label>
               <input
@@ -149,7 +151,7 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
+              <label htmlFor="password" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Mật khẩu
               </label>
               <input
@@ -167,12 +169,12 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-60"
+              className="w-full btn-primary py-3 mt-2"
             >
               {submitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
 
-            <p className="text-center text-xs text-slate-400">
+            <p className="text-center text-xs text-slate-400 mt-4">
               Cần hỗ trợ đăng nhập? Liên hệ quản trị viên hệ thống của bạn.
             </p>
           </form>

@@ -63,27 +63,29 @@ export default function UserListPage() {
     <Layout>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Quản lý người dùng</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-primary">Quản lý người dùng</h1>
           <p className="mt-1 text-sm text-slate-500">
             {filtered.length} / {users.length} tài khoản quản trị hệ thống
           </p>
         </div>
         <Link
           to="/users/new"
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
+          className="btn-primary"
         >
           + Thêm người dùng
         </Link>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-3">
-        <input
-          type="text"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          placeholder="Tìm theo tên đăng nhập, họ tên, email..."
-          className="input w-full max-w-sm"
-        />
+      <div className="mt-4 flex flex-wrap gap-3 p-4 rounded-2xl border border-border-subtle/60 bg-white shadow-card">
+        <div className="min-w-[220px] flex-1">
+          <input
+            type="text"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="Tìm theo tên đăng nhập, họ tên, email..."
+            className="input"
+          />
+        </div>
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
@@ -115,8 +117,8 @@ export default function UserListPage() {
         </select>
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-2xl border border-border-subtle bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-border-subtle text-sm">
+      <div className="mt-4 overflow-x-auto rounded-2xl border border-border-subtle/60 bg-white shadow-card">
+        <table className="min-w-full divide-y divide-border-subtle/60 text-sm">
           <thead className="bg-page">
             <tr>
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Tên đăng nhập</th>
@@ -126,35 +128,35 @@ export default function UserListPage() {
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Trạng thái</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border-subtle">
+          <tbody className="divide-y divide-border-subtle/60">
             {loading && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-slate-500 font-medium">
                   Đang tải dữ liệu...
                 </td>
               </tr>
             )}
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-slate-500 font-medium">
                   Không tìm thấy người dùng nào.
                 </td>
               </tr>
             )}
             {!loading &&
               pageItems.map((u) => (
-                <tr key={u.username} className="hover:bg-page">
+                <tr key={u.username} className="hover:bg-ceramic/40 transition-colors">
                   <td className="whitespace-nowrap px-4 py-3">
                     <Link
                       to={`/users/${u.username}`}
-                      className="font-mono font-medium text-primary hover:underline"
+                      className="font-mono font-semibold text-primary hover:text-accent transition-colors"
                     >
                       {u.username}
                     </Link>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-800">{u.name || '—'}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">{u.email}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">{roleLabel(u.role)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-800 font-semibold">{u.name || '—'}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-600 font-mono text-xs">{u.email}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-600 font-medium">{roleLabel(u.role)}</td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <UserStatusBadge active={u.active} />
                   </td>
@@ -166,7 +168,7 @@ export default function UserListPage() {
 
       {!loading && filtered.length > 0 && (
         <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 font-medium">
             Hiển thị {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filtered.length)} trên{' '}
             {filtered.length} tài khoản
           </p>
