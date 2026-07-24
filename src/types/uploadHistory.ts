@@ -11,4 +11,5 @@ export interface UploadHistory {
   status: 'success' | 'fail';
   message: string;
   createdAt: string;
+  group: string;
 }

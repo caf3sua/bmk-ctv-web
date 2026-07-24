@@ -13,6 +13,7 @@ export default function UploadHistoryPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [keyword, setKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'success' | 'fail'>('all');
+  const [groupFilter, setGroupFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
@@ -41,17 +42,19 @@ export default function UploadHistoryPage() {
         h.filename.toLowerCase().includes(term) ||
         h.uploadedBy.toLowerCase().includes(term) ||
         h.username.toLowerCase().includes(term) ||
+        (h.group && h.group.toLowerCase().includes(term)) ||
         h.message.toLowerCase().includes(term);
 
       const matchesStatus = statusFilter === 'all' || h.status === statusFilter;
+      const matchesGroup = groupFilter === 'all' || h.group === groupFilter;
 
-      return matchesKeyword && matchesStatus;
+      return matchesKeyword && matchesStatus && matchesGroup;
     });
-  }, [histories, keyword, statusFilter]);
+  }, [histories, keyword, statusFilter, groupFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [keyword, statusFilter, pageSize]);
+  }, [keyword, statusFilter, groupFilter, pageSize]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -107,6 +110,14 @@ export default function UploadHistoryPage() {
           <option value="fail">Thất bại</option>
         </select>
         <select
+          value={groupFilter}
+          onChange={(e) => setGroupFilter(e.target.value)}
+          className="input w-auto"
+        >
+          <option value="all">Tất cả nhóm</option>
+          <option value="CTV">Cộng tác viên</option>
+        </select>
+        <select
           value={pageSize}
           onChange={(e) => setPageSize(Number(e.target.value))}
           className="input w-auto"
@@ -125,6 +136,7 @@ export default function UploadHistoryPage() {
             <tr>
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Thời gian</th>
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Tên file</th>
+              <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nhóm</th>
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Trạng thái</th>
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Người upload</th>
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Số dòng xử lý</th>
@@ -135,14 +147,14 @@ export default function UploadHistoryPage() {
           <tbody className="divide-y divide-border-subtle/60">
             {loading && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-500 font-medium">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-500 font-medium">
                   Đang tải dữ liệu...
                 </td>
               </tr>
             )}
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-500 font-medium">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-500 font-medium">
                   Không tìm thấy lịch sử upload nào.
                 </td>
               </tr>
@@ -160,6 +172,11 @@ export default function UploadHistoryPage() {
                         {history.filename}
                       </span>
                     </div>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20">
+                      {history.group === 'CTV' ? 'Cộng tác viên' : history.group || '—'}
+                    </span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <span
