@@ -10,6 +10,7 @@ import UserListPage from './pages/UserListPage';
 import UserDetailPage from './pages/UserDetailPage';
 import SystemLogsPage from './pages/SystemLogsPage';
 import UploadHistoryPage from './pages/UploadHistoryPage';
+import UploadDocumentsPage from './pages/UploadDocumentsPage';
 
 export default function App() {
   return (
@@ -30,6 +31,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <CollaboratorListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/collaborators/upload-documents"
+            element={
+              <ProtectedRoute>
+                <UploadDocumentsPage />
               </ProtectedRoute>
             }
           />

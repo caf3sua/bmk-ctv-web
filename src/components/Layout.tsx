@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 
 const navItems = [
   { to: '/', label: 'Dashboard', end: true },
-  { to: '/collaborators', label: 'Hồ sơ cộng tác viên', end: false },
+  { to: '/collaborators', label: 'Hồ sơ cộng tác viên', end: true },
+  { to: '/collaborators/upload-documents', label: 'Upload loại hồ sơ', end: false },
 ];
 
 const adminNavGroup = {

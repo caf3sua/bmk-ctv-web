@@ -8,17 +8,14 @@ export interface ChecklistItem {
 
 export function getChecklistItems(checklist: Checklist): ChecklistItem[] {
   return [
-    { key: 'idCard', label: 'CCCD', done: checklist.submittedIdCard },
+    { key: 'idCard', label: 'CCCD', done: checklist.submittedIdCard || Boolean(checklist.idCardFile) },
     {
       key: 'serviceContract',
       label: 'Hợp đồng dịch vụ',
-      done: checklist.serviceContracts.some((period) => Boolean(period.startDate)),
+      done: checklist.serviceContracts.some((period) => Boolean(period.startDate)) || Boolean(checklist.serviceContractFile),
     },
-    { key: 'taxCommitment', label: 'Cam kết thuế', done: checklist.submittedTaxCommitment },
-    { key: 'liquidation', label: 'Biên bản thanh lý', done: Boolean(checklist.liquidationDate) },
-    { key: 'cv', label: 'CV', done: checklist.submittedCV },
-    { key: 'residenceInfo', label: 'Thông tin cư trú', done: checklist.submittedResidenceInfo },
-    { key: 'degree', label: 'Bằng cấp', done: checklist.submittedDegree },
+    { key: 'taxCommitment', label: 'Cam kết thuế', done: checklist.submittedTaxCommitment || Boolean(checklist.taxCommitmentFile) },
+    { key: 'liquidation', label: 'Biên bản thanh lý', done: Boolean(checklist.liquidationDate) || Boolean(checklist.liquidationFile) },
   ];
 }
 

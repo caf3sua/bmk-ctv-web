@@ -9,6 +9,7 @@ import {
   deleteCollaborator,
   getCollaborator,
   updateCollaborator,
+  downloadCollaboratorDocument,
 } from '../services/api/collaborators';
 import { emptyCollaborator, type CollaboratorInput, type ServiceContractPeriod } from '../types/collaborator';
 import { getChecklistProgress } from '../utils/checklist';
@@ -133,6 +134,17 @@ export default function CollaboratorDetailPage() {
       setSaving(false);
     }
   }
+
+  const downloadDocument = async (docType: string, fullS3Key: string) => {
+    if (!employeeCode || isNew) return;
+    try {
+      const parts = fullS3Key.split('_');
+      const filename = parts[parts.length - 1] || `${docType}_document`;
+      await downloadCollaboratorDocument(employeeCode, docType, filename);
+    } catch {
+      alert('Không thể tải tệp tin');
+    }
+  };
 
   if (loading) {
     return (
@@ -358,11 +370,26 @@ export default function CollaboratorDetailPage() {
                     <tr>
                       <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-700">CCCD</td>
                       <td className="px-4 py-3">
-                        <CheckboxField
-                          label="Đã nộp"
-                          checked={form.checklist.submittedIdCard}
-                          onChange={(checked) => updateChecklistField('submittedIdCard', checked)}
-                        />
+                        <div className="flex items-center justify-between gap-3">
+                          <CheckboxField
+                            label="Đã nộp"
+                            checked={form.checklist.submittedIdCard}
+                            onChange={(checked) => updateChecklistField('submittedIdCard', checked)}
+                            disabled={true}
+                          />
+                          {form.checklist.idCardFile && (
+                            <button
+                              type="button"
+                              onClick={() => downloadDocument('idCard', form.checklist.idCardFile!)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                              </svg>
+                              Tải file
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                     <tr>
@@ -410,65 +437,78 @@ export default function CollaboratorDetailPage() {
                               </button>
                             </div>
                           ))}
-                          <button
-                            type="button"
-                            onClick={addServiceContract}
-                            className="text-sm font-semibold text-primary hover:underline cursor-pointer inline-block"
-                          >
-                            + Thêm hợp đồng
-                          </button>
+                          <div className="flex items-center justify-between w-full gap-4">
+                            <button
+                              type="button"
+                              onClick={addServiceContract}
+                              className="text-sm font-semibold text-primary hover:underline cursor-pointer inline-block"
+                            >
+                              + Thêm hợp đồng
+                            </button>
+                            {form.checklist.serviceContractFile && (
+                              <button
+                                type="button"
+                                onClick={() => downloadDocument('serviceContract', form.checklist.serviceContractFile!)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                Tải file hợp đồng
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
                     <tr>
                       <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-700">Cam kết thuế</td>
                       <td className="px-4 py-3">
-                        <CheckboxField
-                          label="Đã nộp"
-                          checked={form.checklist.submittedTaxCommitment}
-                          onChange={(checked) => updateChecklistField('submittedTaxCommitment', checked)}
-                        />
+                        <div className="flex items-center justify-between gap-3">
+                          <CheckboxField
+                            label="Đã nộp"
+                            checked={form.checklist.submittedTaxCommitment}
+                            onChange={(checked) => updateChecklistField('submittedTaxCommitment', checked)}
+                            disabled={true}
+                          />
+                          {form.checklist.taxCommitmentFile && (
+                            <button
+                              type="button"
+                              onClick={() => downloadDocument('taxCommitment', form.checklist.taxCommitmentFile!)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                              </svg>
+                              Tải file
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                     <tr>
                       <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-700">Biên bản thanh lý</td>
                       <td className="px-4 py-3">
-                        <input
-                          type="date"
-                          value={form.checklist.liquidationDate ?? ''}
-                          onChange={(e) => updateChecklistField('liquidationDate', e.target.value || null)}
-                          className="input w-auto font-mono"
-                        />
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-700">CV</td>
-                      <td className="px-4 py-3">
-                        <CheckboxField
-                          label="Đã nộp"
-                          checked={form.checklist.submittedCV}
-                          onChange={(checked) => updateChecklistField('submittedCV', checked)}
-                        />
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-700">Thông tin cư trú</td>
-                      <td className="px-4 py-3">
-                        <CheckboxField
-                          label="Đã nộp"
-                          checked={form.checklist.submittedResidenceInfo}
-                          onChange={(checked) => updateChecklistField('submittedResidenceInfo', checked)}
-                        />
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-700">Bằng cấp</td>
-                      <td className="px-4 py-3">
-                        <CheckboxField
-                          label="Đã nộp"
-                          checked={form.checklist.submittedDegree}
-                          onChange={(checked) => updateChecklistField('submittedDegree', checked)}
-                        />
+                        <div className="flex items-center justify-between gap-4">
+                          <input
+                            type="date"
+                            value={form.checklist.liquidationDate ?? ''}
+                            onChange={(e) => updateChecklistField('liquidationDate', e.target.value || null)}
+                            className="input w-auto font-mono"
+                          />
+                          {form.checklist.liquidationFile && (
+                            <button
+                              type="button"
+                              onClick={() => downloadDocument('liquidation', form.checklist.liquidationFile!)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                              </svg>
+                              Tải file biên bản
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -536,18 +576,21 @@ function CheckboxField({
   label,
   checked,
   onChange,
+  disabled,
 }: {
   label: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
-    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+    <label className={`flex items-center gap-2 text-sm text-slate-700 ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent accent-accent cursor-pointer"
+        className={`h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent accent-accent ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
       />
       {label}
     </label>

@@ -57,3 +57,31 @@ export async function importCollaborators(file: File): Promise<ImportResult> {
     body: formData,
   });
 }
+
+export interface UploadDocumentResult {
+  filename: string;
+  status: 'success' | 'fail';
+  message: string;
+  employeeCode: string | null;
+}
+
+export async function uploadCollaboratorDocument(file: File, docType: string): Promise<UploadDocumentResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('doc_type', docType);
+  return apiFetch<UploadDocumentResult>('/collaborators/documents/upload', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function downloadCollaboratorDocument(
+  employeeCode: string,
+  docType: string,
+  filename: string,
+): Promise<void> {
+  return downloadFile(
+    `/collaborators/${encodeURIComponent(employeeCode)}/documents/${encodeURIComponent(docType)}/download`,
+    filename,
+  );
+}

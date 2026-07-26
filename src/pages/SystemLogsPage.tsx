@@ -18,6 +18,7 @@ const ACTIONS: ActivityAction[] = [
   'delete_collaborator',
   'import_collaborators',
   'export_collaborators',
+  'upload_collaborator_document',
 ];
 
 const RESULTS: ActivityResult[] = ['success', 'fail', 'error'];

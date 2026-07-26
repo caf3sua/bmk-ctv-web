@@ -9,9 +9,10 @@ export interface Checklist {
   serviceContracts: ServiceContractPeriod[];
   submittedTaxCommitment: boolean;
   liquidationDate: string | null;
-  submittedCV: boolean;
-  submittedResidenceInfo: boolean;
-  submittedDegree: boolean;
+  idCardFile: string | null;
+  serviceContractFile: string | null;
+  taxCommitmentFile: string | null;
+  liquidationFile: string | null;
 }
 
 export interface Collaborator {
@@ -35,9 +36,10 @@ export const emptyChecklist = (): Checklist => ({
   serviceContracts: [{ startDate: null, endDate: null }],
   submittedTaxCommitment: false,
   liquidationDate: null,
-  submittedCV: false,
-  submittedResidenceInfo: false,
-  submittedDegree: false,
+  idCardFile: null,
+  serviceContractFile: null,
+  taxCommitmentFile: null,
+  liquidationFile: null,
 });
 
 export const emptyCollaborator = (): CollaboratorInput => ({

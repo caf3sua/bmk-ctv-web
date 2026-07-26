@@ -5,7 +5,8 @@ export type ActivityAction =
   | 'update_collaborator'
   | 'delete_collaborator'
   | 'import_collaborators'
-  | 'export_collaborators';
+  | 'export_collaborators'
+  | 'upload_collaborator_document';
 
 export type ActivityResult = 'success' | 'error' | 'fail';
 
