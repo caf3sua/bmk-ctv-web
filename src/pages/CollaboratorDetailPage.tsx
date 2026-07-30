@@ -375,7 +375,6 @@ export default function CollaboratorDetailPage() {
                             label="Đã nộp"
                             checked={form.checklist.submittedIdCard}
                             onChange={(checked) => updateChecklistField('submittedIdCard', checked)}
-                            disabled={true}
                           />
                           {form.checklist.idCardFile && (
                             <button
@@ -469,7 +468,6 @@ export default function CollaboratorDetailPage() {
                             label="Đã nộp"
                             checked={form.checklist.submittedTaxCommitment}
                             onChange={(checked) => updateChecklistField('submittedTaxCommitment', checked)}
-                            disabled={true}
                           />
                           {form.checklist.taxCommitmentFile && (
                             <button
