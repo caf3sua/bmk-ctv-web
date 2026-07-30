@@ -65,14 +65,97 @@ export interface UploadDocumentResult {
   employeeCode: string | null;
 }
 
+export interface UploadUrlResult {
+  filename: string;
+  status: 'success' | 'fail';
+  message?: string;
+  uploadUrl?: string;
+  s3Key?: string;
+  employeeCode?: string;
+}
+
 export async function uploadCollaboratorDocument(file: File, docType: string): Promise<UploadDocumentResult> {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('doc_type', docType);
-  return apiFetch<UploadDocumentResult>('/collaborators/documents/upload', {
-    method: 'POST',
-    body: formData,
-  });
+  // 1. Get presigned upload URL
+  let urlRes: UploadUrlResult;
+  try {
+    urlRes = await apiFetch<UploadUrlResult>('/collaborators/documents/upload-url', {
+      method: 'POST',
+      body: JSON.stringify({
+        filename: file.name,
+        doc_type: docType
+      })
+    });
+  } catch (err: any) {
+    return {
+      filename: file.name,
+      status: 'fail',
+      message: err.message || 'Lỗi khi yêu cầu đường dẫn tải lên từ máy chủ',
+      employeeCode: null
+    };
+  }
+
+  if (urlRes.status === 'fail') {
+    return {
+      filename: file.name,
+      status: 'fail',
+      message: urlRes.message || 'Không thể tạo đường dẫn tải lên',
+      employeeCode: urlRes.employeeCode || null
+    };
+  }
+
+  if (!urlRes.uploadUrl || !urlRes.s3Key || !urlRes.employeeCode) {
+    return {
+      filename: file.name,
+      status: 'fail',
+      message: 'Không nhận được đầy đủ thông tin đường dẫn tải lên từ máy chủ',
+      employeeCode: urlRes.employeeCode || null
+    };
+  }
+
+  // 2. Upload file directly to S3 via PUT
+  try {
+    const s3Response = await fetch(urlRes.uploadUrl, {
+      method: 'PUT',
+      body: file,
+      mode: 'cors',
+      credentials: 'omit',
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream'
+      }
+    });
+
+    if (!s3Response.ok) {
+      throw new Error(`S3 returned HTTP ${s3Response.status}`);
+    }
+  } catch (err: any) {
+    return {
+      filename: file.name,
+      status: 'fail',
+      message: `Tải tệp tin lên S3 thất bại: ${err.message || String(err)}`,
+      employeeCode: urlRes.employeeCode
+    };
+  }
+
+  // 3. Confirm upload with backend
+  try {
+    const confirmRes = await apiFetch<UploadDocumentResult>('/collaborators/documents/upload-confirm', {
+      method: 'POST',
+      body: JSON.stringify({
+        filename: file.name,
+        doc_type: docType,
+        employee_code: urlRes.employeeCode,
+        s3_key: urlRes.s3Key
+      })
+    });
+    return confirmRes;
+  } catch (err: any) {
+    return {
+      filename: file.name,
+      status: 'fail',
+      message: `Xác nhận tải lên với máy chủ thất bại: ${err.message || String(err)}`,
+      employeeCode: urlRes.employeeCode
+    };
+  }
 }
 
 export async function downloadCollaboratorDocument(
