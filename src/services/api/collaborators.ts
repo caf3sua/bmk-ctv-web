@@ -162,9 +162,11 @@ export async function downloadCollaboratorDocument(
   employeeCode: string,
   docType: string,
   filename: string,
+  fileKey?: string,
 ): Promise<void> {
+  const query = fileKey ? `?file_key=${encodeURIComponent(fileKey)}` : '';
   return downloadFile(
-    `/collaborators/${encodeURIComponent(employeeCode)}/documents/${encodeURIComponent(docType)}/download`,
+    `/collaborators/${encodeURIComponent(employeeCode)}/documents/${encodeURIComponent(docType)}/download${query}`,
     filename,
   );
 }

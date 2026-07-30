@@ -4,15 +4,22 @@ export interface ServiceContractPeriod {
 }
 
 export interface Checklist {
-  submittedIdCard: boolean;
-  // Có thể có nhiều hợp đồng dịch vụ theo thời gian; luôn giữ tối thiểu 1 phần tử.
-  serviceContracts: ServiceContractPeriod[];
-  submittedTaxCommitment: boolean;
-  liquidationDate: string | null;
-  idCardFile: string | null;
-  serviceContractFile: string | null;
-  taxCommitmentFile: string | null;
-  liquidationFile: string | null;
+  cccd: {
+    checked: boolean;
+    file: string | null;
+  };
+  ckt: {
+    checked: boolean;
+    file: string | null;
+  };
+  hddv: {
+    contract_date: ServiceContractPeriod[];
+    files: string[];
+  };
+  bbtl: {
+    date: string | null;
+    file: string | null;
+  };
 }
 
 export interface Collaborator {
@@ -32,14 +39,22 @@ export interface Collaborator {
 export type CollaboratorInput = Omit<Collaborator, 'createdAt' | 'updatedAt'>;
 
 export const emptyChecklist = (): Checklist => ({
-  submittedIdCard: false,
-  serviceContracts: [{ startDate: null, endDate: null }],
-  submittedTaxCommitment: false,
-  liquidationDate: null,
-  idCardFile: null,
-  serviceContractFile: null,
-  taxCommitmentFile: null,
-  liquidationFile: null,
+  cccd: {
+    checked: false,
+    file: null,
+  },
+  ckt: {
+    checked: false,
+    file: null,
+  },
+  hddv: {
+    contract_date: [{ startDate: null, endDate: null }],
+    files: [],
+  },
+  bbtl: {
+    date: null,
+    file: null,
+  },
 });
 
 export const emptyCollaborator = (): CollaboratorInput => ({

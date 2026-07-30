@@ -7,15 +7,26 @@ export interface ChecklistItem {
 }
 
 export function getChecklistItems(checklist: Checklist): ChecklistItem[] {
+  const cccd = checklist.cccd || { checked: false, file: null };
+  const ckt = checklist.ckt || { checked: false, file: null };
+  const hddv = checklist.hddv || { contract_date: [], files: [] };
+  const bbtl = checklist.bbtl || { date: null, file: null };
+
   return [
-    { key: 'idCard', label: 'CCCD', done: checklist.submittedIdCard },
+    { key: 'idCard', label: 'CCCD', done: cccd.checked || Boolean(cccd.file) },
     {
       key: 'serviceContract',
       label: 'Hợp đồng dịch vụ',
-      done: checklist.serviceContracts.some((period) => Boolean(period.startDate)) || Boolean(checklist.serviceContractFile),
+      done:
+        (hddv.contract_date || []).some((period) => Boolean(period.startDate)) ||
+        (hddv.files || []).length > 0,
     },
-    { key: 'taxCommitment', label: 'Cam kết thuế', done: checklist.submittedTaxCommitment },
-    { key: 'liquidation', label: 'Biên bản thanh lý', done: Boolean(checklist.liquidationDate) || Boolean(checklist.liquidationFile) },
+    { key: 'taxCommitment', label: 'Cam kết thuế', done: ckt.checked || Boolean(ckt.file) },
+    {
+      key: 'liquidation',
+      label: 'Biên bản thanh lý',
+      done: Boolean(bbtl.date) || Boolean(bbtl.file),
+    },
   ];
 }
 

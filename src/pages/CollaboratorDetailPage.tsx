@@ -62,46 +62,96 @@ export default function CollaboratorDetailPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function updateChecklistField<K extends keyof CollaboratorInput['checklist']>(
-    key: K,
-    value: CollaboratorInput['checklist'][K],
-  ) {
-    setForm((prev) => ({ ...prev, checklist: { ...prev.checklist, [key]: value } }));
-  }
+
 
   function addServiceContract() {
-    setForm((prev) => ({
-      ...prev,
-      checklist: {
-        ...prev.checklist,
-        serviceContracts: [...prev.checklist.serviceContracts, { startDate: null, endDate: null }],
-      },
-    }));
-  }
-
-  function removeServiceContract(index: number) {
     setForm((prev) => {
-      if (prev.checklist.serviceContracts.length <= 1) return prev;
+      const hddv = prev.checklist.hddv || { contract_date: [], files: [] };
       return {
         ...prev,
         checklist: {
           ...prev.checklist,
-          serviceContracts: prev.checklist.serviceContracts.filter((_, i) => i !== index),
+          hddv: {
+            ...hddv,
+            contract_date: [...(hddv.contract_date || []), { startDate: null, endDate: null }],
+          },
+        },
+      };
+    });
+  }
+
+  function removeServiceContract(index: number) {
+    setForm((prev) => {
+      const hddv = prev.checklist.hddv || { contract_date: [], files: [] };
+      if ((hddv.contract_date || []).length <= 1) return prev;
+      return {
+        ...prev,
+        checklist: {
+          ...prev.checklist,
+          hddv: {
+            ...hddv,
+            contract_date: (hddv.contract_date || []).filter((_, i) => i !== index),
+          },
         },
       };
     });
   }
 
   function updateServiceContract(index: number, patch: Partial<ServiceContractPeriod>) {
-    setForm((prev) => ({
-      ...prev,
-      checklist: {
-        ...prev.checklist,
-        serviceContracts: prev.checklist.serviceContracts.map((period, i) =>
-          i === index ? { ...period, ...patch } : period,
-        ),
-      },
-    }));
+    setForm((prev) => {
+      const hddv = prev.checklist.hddv || { contract_date: [], files: [] };
+      return {
+        ...prev,
+        checklist: {
+          ...prev.checklist,
+          hddv: {
+            ...hddv,
+            contract_date: (hddv.contract_date || []).map((period, i) =>
+              i === index ? { ...period, ...patch } : period,
+            ),
+          },
+        },
+      };
+    });
+  }
+
+  function updateCccdChecked(checked: boolean) {
+    setForm((prev) => {
+      const cccd = prev.checklist.cccd || { checked: false, file: null };
+      return {
+        ...prev,
+        checklist: {
+          ...prev.checklist,
+          cccd: { ...cccd, checked },
+        },
+      };
+    });
+  }
+
+  function updateCktChecked(checked: boolean) {
+    setForm((prev) => {
+      const ckt = prev.checklist.ckt || { checked: false, file: null };
+      return {
+        ...prev,
+        checklist: {
+          ...prev.checklist,
+          ckt: { ...ckt, checked },
+        },
+      };
+    });
+  }
+
+  function updateBbtlDate(date: string | null) {
+    setForm((prev) => {
+      const bbtl = prev.checklist.bbtl || { date: null, file: null };
+      return {
+        ...prev,
+        checklist: {
+          ...prev.checklist,
+          bbtl: { ...bbtl, date },
+        },
+      };
+    });
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -140,7 +190,7 @@ export default function CollaboratorDetailPage() {
     try {
       const parts = fullS3Key.split('_');
       const filename = parts[parts.length - 1] || `${docType}_document`;
-      await downloadCollaboratorDocument(employeeCode, docType, filename);
+      await downloadCollaboratorDocument(employeeCode, docType, filename, fullS3Key);
     } catch {
       alert('Không thể tải tệp tin');
     }
@@ -373,13 +423,13 @@ export default function CollaboratorDetailPage() {
                         <div className="flex items-center justify-between gap-3">
                           <CheckboxField
                             label="Đã nộp"
-                            checked={form.checklist.submittedIdCard}
-                            onChange={(checked) => updateChecklistField('submittedIdCard', checked)}
+                            checked={form.checklist.cccd?.checked || false}
+                            onChange={(checked) => updateCccdChecked(checked)}
                           />
-                          {form.checklist.idCardFile && (
+                          {form.checklist.cccd?.file && (
                             <button
                               type="button"
-                              onClick={() => downloadDocument('idCard', form.checklist.idCardFile!)}
+                              onClick={() => downloadDocument('idCard', form.checklist.cccd.file!)}
                               className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
@@ -397,7 +447,7 @@ export default function CollaboratorDetailPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="space-y-3">
-                          {form.checklist.serviceContracts.map((period, index) => (
+                          {(form.checklist.hddv?.contract_date || []).map((period, index) => (
                             <div key={index} className="flex flex-wrap items-center gap-3">
                               <label className="flex items-center gap-2 text-sm text-slate-600 font-medium">
                                 Từ
@@ -424,9 +474,9 @@ export default function CollaboratorDetailPage() {
                               <button
                                 type="button"
                                 onClick={() => removeServiceContract(index)}
-                                disabled={form.checklist.serviceContracts.length <= 1}
+                                disabled={(form.checklist.hddv?.contract_date || []).length <= 1}
                                 title={
-                                  form.checklist.serviceContracts.length <= 1
+                                  (form.checklist.hddv?.contract_date || []).length <= 1
                                     ? 'Phải giữ ít nhất 1 hợp đồng dịch vụ'
                                     : 'Xóa hợp đồng này'
                                 }
@@ -436,25 +486,41 @@ export default function CollaboratorDetailPage() {
                               </button>
                             </div>
                           ))}
-                          <div className="flex items-center justify-between w-full gap-4">
-                            <button
-                              type="button"
-                              onClick={addServiceContract}
-                              className="text-sm font-semibold text-primary hover:underline cursor-pointer inline-block"
-                            >
-                              + Thêm hợp đồng
-                            </button>
-                            {form.checklist.serviceContractFile && (
+                          <div className="flex flex-col gap-2 pt-1">
+                            <div className="flex items-center">
                               <button
                                 type="button"
-                                onClick={() => downloadDocument('serviceContract', form.checklist.serviceContractFile!)}
-                                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                                onClick={addServiceContract}
+                                className="text-sm font-semibold text-primary hover:underline cursor-pointer inline-block"
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                                </svg>
-                                Tải file hợp đồng
+                                + Thêm hợp đồng
                               </button>
+                            </div>
+                            {/* Render files upload list */}
+                            {((form.checklist.hddv?.files || [])).length > 0 && (
+                              <div className="flex flex-col gap-1.5 mt-1 border-t border-slate-100 pt-2">
+                                {form.checklist.hddv.files.map((fileKey, index) => {
+                                  const parts = fileKey.split('_');
+                                  const displayFilename = parts[parts.length - 1] || `Hợp đồng ${index + 1}`;
+                                  return (
+                                    <div key={fileKey} className="flex items-center justify-between gap-4 text-xs">
+                                      <span className="text-slate-500 font-medium truncate max-w-[200px]" title={fileKey}>
+                                        {displayFilename}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => downloadDocument('serviceContract', fileKey)}
+                                        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline cursor-pointer"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                        </svg>
+                                        Tải xuống
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -466,13 +532,13 @@ export default function CollaboratorDetailPage() {
                         <div className="flex items-center justify-between gap-3">
                           <CheckboxField
                             label="Đã nộp"
-                            checked={form.checklist.submittedTaxCommitment}
-                            onChange={(checked) => updateChecklistField('submittedTaxCommitment', checked)}
+                            checked={form.checklist.ckt?.checked || false}
+                            onChange={(checked) => updateCktChecked(checked)}
                           />
-                          {form.checklist.taxCommitmentFile && (
+                          {form.checklist.ckt?.file && (
                             <button
                               type="button"
-                              onClick={() => downloadDocument('taxCommitment', form.checklist.taxCommitmentFile!)}
+                              onClick={() => downloadDocument('taxCommitment', form.checklist.ckt.file!)}
                               className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
@@ -490,14 +556,14 @@ export default function CollaboratorDetailPage() {
                         <div className="flex items-center justify-between gap-4">
                           <input
                             type="date"
-                            value={form.checklist.liquidationDate ?? ''}
-                            onChange={(e) => updateChecklistField('liquidationDate', e.target.value || null)}
+                            value={form.checklist.bbtl?.date ?? ''}
+                            onChange={(e) => updateBbtlDate(e.target.value || null)}
                             className="input w-auto font-mono"
                           />
-                          {form.checklist.liquidationFile && (
+                          {form.checklist.bbtl?.file && (
                             <button
                               type="button"
-                              onClick={() => downloadDocument('liquidation', form.checklist.liquidationFile!)}
+                              onClick={() => downloadDocument('liquidation', form.checklist.bbtl.file!)}
                               className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
