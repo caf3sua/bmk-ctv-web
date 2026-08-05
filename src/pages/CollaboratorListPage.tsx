@@ -6,6 +6,7 @@ import Pagination from '../components/Pagination';
 import ProfileStatusBadge from '../components/ProfileStatusBadge';
 import { ApiError } from '../services/api/client';
 import {
+  downloadDoiSoatTemplate,
   downloadImportTemplate,
   exportCollaborators,
   importCollaborators,
@@ -66,6 +67,17 @@ export default function CollaboratorListPage() {
     } catch (err) {
       setImportMessage({
         text: err instanceof ApiError ? err.message : 'Tải file mẫu thất bại',
+        tone: 'error',
+      });
+    }
+  }
+
+  async function handleDownloadDoiSoat() {
+    try {
+      await downloadDoiSoatTemplate();
+    } catch (err) {
+      setImportMessage({
+        text: err instanceof ApiError ? err.message : 'Tải file đối soát thất bại',
         tone: 'error',
       });
     }
@@ -192,9 +204,13 @@ export default function CollaboratorListPage() {
         </div>
       </div>
 
-      <div className="mt-2 flex justify-end">
+      <div className="mt-2 flex justify-end gap-3">
         <button type="button" onClick={handleDownloadTemplate} className="text-xs text-primary font-semibold hover:underline cursor-pointer">
           Tải file mẫu nhập dữ liệu
+        </button>
+        <span className="text-xs text-slate-300">|</span>
+        <button type="button" onClick={handleDownloadDoiSoat} className="text-xs text-danger font-semibold hover:underline cursor-pointer">
+          Tải file đối soát
         </button>
       </div>
 
