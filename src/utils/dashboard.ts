@@ -5,7 +5,7 @@ export interface GrowthPoint {
   value: number;
 }
 
-// Xây chuỗi số lượng cộng tác viên cộng dồn theo từng tháng, lấp đầy các tháng
+// Xây chuỗi số lượng cộng tác viên cộng dồn theo từng ngày, lấp đầy các ngày
 // không có hồ sơ mới để trục thời gian liền mạch.
 export function buildGrowthSeries(items: Collaborator[]): GrowthPoint[] {
   const dates = items
@@ -13,33 +13,38 @@ export function buildGrowthSeries(items: Collaborator[]): GrowthPoint[] {
     .filter((d) => !Number.isNaN(d.getTime()));
   if (dates.length === 0) return [];
 
-  const toKey = (year: number, month: number) => `${year}-${String(month).padStart(2, '0')}`;
+  const toKey = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const r = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${r}`;
+  };
 
-  const monthCounts = new Map<string, number>();
+  const dayCounts = new Map<string, number>();
   dates.forEach((date) => {
-    const key = toKey(date.getFullYear(), date.getMonth() + 1);
-    monthCounts.set(key, (monthCounts.get(key) ?? 0) + 1);
+    const key = toKey(date);
+    dayCounts.set(key, (dayCounts.get(key) ?? 0) + 1);
   });
 
   const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
   const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
-  const endKey = toKey(maxDate.getFullYear(), maxDate.getMonth() + 1);
+
+  const start = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
+  const end = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
 
   const series: GrowthPoint[] = [];
   let cumulative = 0;
-  let year = minDate.getFullYear();
-  let month = minDate.getMonth() + 1;
+  const current = new Date(start);
 
-  while (true) {
-    const key = toKey(year, month);
-    cumulative += monthCounts.get(key) ?? 0;
-    series.push({ label: `T${month}/${String(year).slice(2)}`, value: cumulative });
-    if (key === endKey) break;
-    month += 1;
-    if (month > 12) {
-      month = 1;
-      year += 1;
-    }
+  while (current <= end) {
+    const key = toKey(current);
+    cumulative += dayCounts.get(key) ?? 0;
+    
+    // Định dạng label: DD/MM (ví dụ: 05/08)
+    const label = `${String(current.getDate()).padStart(2, '0')}/${String(current.getMonth() + 1).padStart(2, '0')}`;
+    series.push({ label, value: cumulative });
+    
+    current.setDate(current.getDate() + 1);
   }
 
   return series;
