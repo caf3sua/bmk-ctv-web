@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Avatar from '../components/Avatar';
+import ConfirmModal from '../components/ConfirmModal';
 import Layout from '../components/Layout';
 import ProfileStatusBadge from '../components/ProfileStatusBadge';
 import { ApiError } from '../services/api/client';
@@ -10,9 +11,10 @@ import {
   getCollaborator,
   updateCollaborator,
   downloadCollaboratorDocument,
+  deleteCollaboratorDocument,
 } from '../services/api/collaborators';
 import { emptyCollaborator, type CollaboratorInput, type ServiceContractPeriod } from '../types/collaborator';
-import { getChecklistProgress } from '../utils/checklist';
+import { getChecklistProgress, parseUploadedFileMeta } from '../utils/checklist';
 import { formatDate } from '../utils/date';
 
 type TabKey = 'info' | 'checklist';
@@ -28,6 +30,9 @@ export default function CollaboratorDetailPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('info');
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [deletingFile, setDeletingFile] = useState<string | null>(null);
+  const [confirmDeleteFile, setConfirmDeleteFile] = useState<{ fileKey: string; filename: string } | null>(null);
+  const [confirmDeleteProfile, setConfirmDeleteProfile] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
 
@@ -172,9 +177,13 @@ export default function CollaboratorDetailPage() {
     }
   }
 
-  async function handleDelete() {
+  function openConfirmDeleteProfile() {
     if (!employeeCode || isNew) return;
-    if (!window.confirm(`Xóa hồ sơ cộng tác viên "${form.fullName || employeeCode}"?`)) return;
+    setConfirmDeleteProfile(true);
+  }
+
+  async function executeDeleteProfile() {
+    if (!employeeCode || isNew) return;
     setSaving(true);
     try {
       await deleteCollaborator(employeeCode);
@@ -182,17 +191,68 @@ export default function CollaboratorDetailPage() {
     } catch {
       setError('Xóa dữ liệu thất bại');
       setSaving(false);
+      setConfirmDeleteProfile(false);
     }
   }
 
   const downloadDocument = async (docType: string, fullS3Key: string) => {
     if (!employeeCode || isNew) return;
     try {
-      const parts = fullS3Key.split('_');
-      const filename = parts[parts.length - 1] || `${docType}_document`;
+      const { filename } = parseUploadedFileMeta(fullS3Key, `${docType}_document`);
       await downloadCollaboratorDocument(employeeCode, docType, filename, fullS3Key);
     } catch {
       alert('Không thể tải tệp tin');
+    }
+  };
+
+  const openConfirmDeleteContractFile = (fileKey: string, defaultName?: string) => {
+    const { filename } = parseUploadedFileMeta(fileKey, defaultName);
+    setConfirmDeleteFile({ fileKey, filename });
+  };
+
+  const handleConfirmDeleteContractFile = async () => {
+    if (!confirmDeleteFile) return;
+    const { fileKey } = confirmDeleteFile;
+
+    if (!employeeCode || isNew) {
+      setForm((prev) => {
+        const hddv = prev.checklist.hddv || { contract_date: [], files: [] };
+        return {
+          ...prev,
+          checklist: {
+            ...prev.checklist,
+            hddv: {
+              ...hddv,
+              files: (hddv.files || []).filter((f) => f !== fileKey),
+            },
+          },
+        };
+      });
+      setConfirmDeleteFile(null);
+      return;
+    }
+
+    setDeletingFile(fileKey);
+    try {
+      await deleteCollaboratorDocument(employeeCode, 'serviceContract', fileKey);
+      setForm((prev) => {
+        const hddv = prev.checklist.hddv || { contract_date: [], files: [] };
+        return {
+          ...prev,
+          checklist: {
+            ...prev.checklist,
+            hddv: {
+              ...hddv,
+              files: (hddv.files || []).filter((f) => f !== fileKey),
+            },
+          },
+        };
+      });
+      setConfirmDeleteFile(null);
+    } catch (err) {
+      alert('Không thể xóa tệp tin: ' + (err instanceof Error ? err.message : 'Đã có lỗi xảy ra'));
+    } finally {
+      setDeletingFile(null);
     }
   };
 
@@ -253,7 +313,7 @@ export default function CollaboratorDetailPage() {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={handleDelete}
+                  onClick={openConfirmDeleteProfile}
                   disabled={saving}
                   className="btn-danger-outline"
                 >
@@ -500,23 +560,47 @@ export default function CollaboratorDetailPage() {
                             {((form.checklist.hddv?.files || [])).length > 0 && (
                               <div className="flex flex-col gap-1.5 mt-1 border-t border-slate-100 pt-2">
                                 {form.checklist.hddv.files.map((fileKey, index) => {
-                                  const parts = fileKey.split('_');
-                                  const displayFilename = parts[parts.length - 1] || `Hợp đồng ${index + 1}`;
+                                  const defaultName = `Hợp đồng ${index + 1}`;
+                                  const { filename: displayFilename, uploadDate } = parseUploadedFileMeta(fileKey, defaultName);
                                   return (
                                     <div key={fileKey} className="flex items-center justify-between gap-4 text-xs">
-                                      <span className="text-slate-500 font-medium truncate max-w-[200px]" title={fileKey}>
+                                      <span className="text-slate-600 font-medium truncate max-w-[200px]" title={fileKey}>
                                         {displayFilename}
                                       </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => downloadDocument('serviceContract', fileKey)}
-                                        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline cursor-pointer"
-                                      >
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                                        </svg>
-                                        Tải xuống
-                                      </button>
+                                      <div className="flex items-center gap-3">
+                                        {uploadDate && (
+                                          <span
+                                            className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-mono"
+                                            title={`Ngày tải lên: ${uploadDate}`}
+                                          >
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-3.5 h-3.5 text-slate-400">
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                            </svg>
+                                            {uploadDate}
+                                          </span>
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => downloadDocument('serviceContract', fileKey)}
+                                          className="inline-flex items-center gap-1 font-semibold text-primary hover:underline cursor-pointer"
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                          </svg>
+                                          Tải xuống
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => openConfirmDeleteContractFile(fileKey, defaultName)}
+                                          disabled={deletingFile === fileKey}
+                                          className="inline-flex items-center gap-1 font-semibold text-danger hover:underline cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                          </svg>
+                                          {deletingFile === fileKey ? 'Đang xóa...' : 'Xóa'}
+                                        </button>
+                                      </div>
                                     </div>
                                   );
                                 })}
@@ -598,6 +682,52 @@ export default function CollaboratorDetailPage() {
           </button>
         </div>
       </form>
+
+      <ConfirmModal
+        isOpen={Boolean(confirmDeleteFile)}
+        title="Xác nhận xóa Hợp đồng dịch vụ"
+        message={
+          <span>
+            Bạn có chắc chắn muốn xóa file{' '}
+            <span className="font-semibold text-slate-900 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded font-mono text-xs inline-block max-w-[280px] truncate align-bottom">
+              "{confirmDeleteFile?.filename}"
+            </span>{' '}
+            không?
+          </span>
+        }
+        note="Lưu ý: Tệp tin sẽ bị xóa vĩnh viễn khỏi hệ thống và không thể khôi phục."
+        confirmLabel={deletingFile ? 'Đang xóa...' : 'Xóa vĩnh viễn'}
+        cancelLabel="Hủy bỏ"
+        variant="danger"
+        loading={Boolean(deletingFile)}
+        onConfirm={handleConfirmDeleteContractFile}
+        onCancel={() => {
+          if (!deletingFile) setConfirmDeleteFile(null);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={confirmDeleteProfile}
+        title="Xác nhận xóa hồ sơ cộng tác viên"
+        message={
+          <span>
+            Bạn có chắc chắn muốn xóa toàn bộ hồ sơ của cộng tác viên{' '}
+            <span className="font-semibold text-slate-900 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded font-mono text-xs">
+              "{form.fullName || employeeCode}"
+            </span>{' '}
+            không?
+          </span>
+        }
+        note="Lưu ý: Toàn bộ thông tin cá nhân và checklist hồ sơ sẽ bị xóa vĩnh viễn khỏi hệ thống."
+        confirmLabel={saving ? 'Đang xóa...' : 'Xóa vĩnh viễn'}
+        cancelLabel="Hủy bỏ"
+        variant="danger"
+        loading={saving}
+        onConfirm={executeDeleteProfile}
+        onCancel={() => {
+          if (!saving) setConfirmDeleteProfile(false);
+        }}
+      />
     </Layout>
   );
 }

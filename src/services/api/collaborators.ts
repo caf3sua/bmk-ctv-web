@@ -182,3 +182,18 @@ export async function downloadCollaboratorDocument(
     filename,
   );
 }
+
+export async function deleteCollaboratorDocument(
+  employeeCode: string,
+  docType: string,
+  fileKey?: string,
+): Promise<{ status: string; message: string }> {
+  const query = fileKey ? `?file_key=${encodeURIComponent(fileKey)}` : '';
+  return apiFetch<{ status: string; message: string }>(
+    `/collaborators/${encodeURIComponent(employeeCode)}/documents/${encodeURIComponent(docType)}${query}`,
+    {
+      method: 'DELETE',
+    },
+  );
+}
+
