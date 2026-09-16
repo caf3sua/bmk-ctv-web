@@ -12,8 +12,10 @@ export function getChecklistItems(checklist: Checklist): ChecklistItem[] {
   const hddv = checklist.hddv || { contract_date: [], files: [] };
   const bbtl = checklist.bbtl || { date: null, file: null };
 
+  const hasFile = (f: any) => Boolean(typeof f === 'object' && f !== null ? f.name : f);
+
   return [
-    { key: 'idCard', label: 'CCCD', done: cccd.checked || Boolean(cccd.file) },
+    { key: 'idCard', label: 'CCCD', done: cccd.checked || hasFile(cccd.file) },
     {
       key: 'serviceContract',
       label: 'Hợp đồng dịch vụ',
@@ -21,11 +23,11 @@ export function getChecklistItems(checklist: Checklist): ChecklistItem[] {
         (hddv.contract_date || []).some((period) => Boolean(period.startDate)) ||
         (hddv.files || []).length > 0,
     },
-    { key: 'taxCommitment', label: 'Cam kết thuế', done: ckt.checked || Boolean(ckt.file) },
+    { key: 'taxCommitment', label: 'Cam kết thuế', done: ckt.checked || hasFile(ckt.file) },
     {
       key: 'liquidation',
       label: 'Biên bản thanh lý',
-      done: Boolean(bbtl.date) || Boolean(bbtl.file),
+      done: Boolean(bbtl.date) || hasFile(bbtl.file),
     },
   ];
 }

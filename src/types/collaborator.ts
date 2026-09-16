@@ -3,22 +3,27 @@ export interface ServiceContractPeriod {
   endDate: string | null;
 }
 
+export interface ChecklistFileItem {
+  name: string;
+  updatedDate?: string | null;
+}
+
 export interface Checklist {
   cccd: {
     checked: boolean;
-    file: string | null;
+    file: ChecklistFileItem | null;
   };
   ckt: {
     checked: boolean;
-    file: string | null;
+    file: ChecklistFileItem | null;
   };
   hddv: {
     contract_date: ServiceContractPeriod[];
-    files: string[];
+    files: ChecklistFileItem[];
   };
   bbtl: {
     date: string | null;
-    file: string | null;
+    file: ChecklistFileItem | null;
   };
 }
 

@@ -15,7 +15,7 @@ import {
 } from '../services/api/collaborators';
 import { emptyCollaborator, type CollaboratorInput, type ServiceContractPeriod } from '../types/collaborator';
 import { getChecklistProgress, parseUploadedFileMeta } from '../utils/checklist';
-import { formatDate } from '../utils/date';
+import { formatDate, formatDateTime } from '../utils/date';
 
 type TabKey = 'info' | 'checklist';
 
@@ -223,7 +223,7 @@ export default function CollaboratorDetailPage() {
             ...prev.checklist,
             hddv: {
               ...hddv,
-              files: (hddv.files || []).filter((f) => f !== fileKey),
+              files: (hddv.files || []).filter((f) => (typeof f === 'string' ? f : f.name) !== fileKey),
             },
           },
         };
@@ -243,7 +243,7 @@ export default function CollaboratorDetailPage() {
             ...prev.checklist,
             hddv: {
               ...hddv,
-              files: (hddv.files || []).filter((f) => f !== fileKey),
+              files: (hddv.files || []).filter((f) => (typeof f === 'string' ? f : f.name) !== fileKey),
             },
           },
         };
@@ -486,17 +486,24 @@ export default function CollaboratorDetailPage() {
                             checked={form.checklist.cccd?.checked || false}
                             onChange={(checked) => updateCccdChecked(checked)}
                           />
-                          {form.checklist.cccd?.file && (
-                            <button
-                              type="button"
-                              onClick={() => downloadDocument('idCard', form.checklist.cccd.file!)}
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                              </svg>
-                              Tải file
-                            </button>
+                          {form.checklist.cccd?.file?.name && (
+                            <div className="flex items-center gap-3">
+                              {form.checklist.cccd.file.updatedDate && (
+                                <span className="text-[11px] text-slate-400 font-mono" title={`Ngày tải lên: ${formatDateTime(form.checklist.cccd.file.updatedDate)}`}>
+                                  {formatDateTime(form.checklist.cccd.file.updatedDate)}
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => downloadDocument('idCard', form.checklist.cccd.file!.name)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                Tải file
+                              </button>
+                            </div>
                           )}
                         </div>
                       </td>
@@ -559,9 +566,12 @@ export default function CollaboratorDetailPage() {
                             {/* Render files upload list */}
                             {((form.checklist.hddv?.files || [])).length > 0 && (
                               <div className="flex flex-col gap-1.5 mt-1 border-t border-slate-100 pt-2">
-                                {form.checklist.hddv.files.map((fileKey, index) => {
+                                {form.checklist.hddv.files.map((item, index) => {
+                                  const fileKey = typeof item === 'string' ? item : item.name;
+                                  const updatedDate = typeof item === 'object' && item !== null ? item.updatedDate : null;
                                   const defaultName = `Hợp đồng ${index + 1}`;
-                                  const { filename: displayFilename, uploadDate } = parseUploadedFileMeta(fileKey, defaultName);
+                                  const { filename: displayFilename, uploadDate: parsedDate } = parseUploadedFileMeta(fileKey, defaultName);
+                                  const uploadDate = updatedDate ? formatDateTime(updatedDate) : parsedDate;
                                   return (
                                     <div key={fileKey} className="flex items-center justify-between gap-4 text-xs">
                                       <span className="text-slate-600 font-medium truncate max-w-[200px]" title={fileKey}>
@@ -619,17 +629,24 @@ export default function CollaboratorDetailPage() {
                             checked={form.checklist.ckt?.checked || false}
                             onChange={(checked) => updateCktChecked(checked)}
                           />
-                          {form.checklist.ckt?.file && (
-                            <button
-                              type="button"
-                              onClick={() => downloadDocument('taxCommitment', form.checklist.ckt.file!)}
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                              </svg>
-                              Tải file
-                            </button>
+                          {form.checklist.ckt?.file?.name && (
+                            <div className="flex items-center gap-3">
+                              {form.checklist.ckt.file.updatedDate && (
+                                <span className="text-[11px] text-slate-400 font-mono" title={`Ngày tải lên: ${formatDateTime(form.checklist.ckt.file.updatedDate)}`}>
+                                  {formatDateTime(form.checklist.ckt.file.updatedDate)}
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => downloadDocument('taxCommitment', form.checklist.ckt.file!.name)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                Tải file
+                              </button>
+                            </div>
                           )}
                         </div>
                       </td>
@@ -644,17 +661,24 @@ export default function CollaboratorDetailPage() {
                             onChange={(e) => updateBbtlDate(e.target.value || null)}
                             className="input w-auto font-mono"
                           />
-                          {form.checklist.bbtl?.file && (
-                            <button
-                              type="button"
-                              onClick={() => downloadDocument('liquidation', form.checklist.bbtl.file!)}
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                              </svg>
-                              Tải file biên bản
-                            </button>
+                          {form.checklist.bbtl?.file?.name && (
+                            <div className="flex items-center gap-3">
+                              {form.checklist.bbtl.file.updatedDate && (
+                                <span className="text-[11px] text-slate-400 font-mono" title={`Ngày tải lên: ${formatDateTime(form.checklist.bbtl.file.updatedDate)}`}>
+                                  {formatDateTime(form.checklist.bbtl.file.updatedDate)}
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => downloadDocument('liquidation', form.checklist.bbtl.file!.name)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                Tải file biên bản
+                              </button>
+                            </div>
                           )}
                         </div>
                       </td>
