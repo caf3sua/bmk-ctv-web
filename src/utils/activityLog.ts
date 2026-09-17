@@ -8,7 +8,9 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   delete_collaborator: 'Xóa CTV',
   import_collaborators: 'Nhập dữ liệu CTV',
   export_collaborators: 'Xuất dữ liệu CTV',
+  export_collaborators_doisoat: 'Xuất đối soát CTV',
   upload_collaborator_document: 'Upload tài liệu CTV',
+  delete_collaborator_document: 'Xóa tài liệu CTV',
 };
 
 const RESULT_LABELS: Record<ActivityResult, string> = {
