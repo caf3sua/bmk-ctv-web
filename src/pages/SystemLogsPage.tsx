@@ -54,7 +54,8 @@ export default function SystemLogsPage() {
         !term ||
         log.fullName.toLowerCase().includes(term) ||
         log.username.toLowerCase().includes(term) ||
-        log.message.toLowerCase().includes(term);
+        log.message.toLowerCase().includes(term) ||
+        Boolean(log.employeeCode && log.employeeCode.toLowerCase().includes(term));
 
       const matchesAction = actionFilter === 'all' || log.action === actionFilter;
       const matchesResult = resultFilter === 'all' || log.result === resultFilter;
@@ -95,7 +96,7 @@ export default function SystemLogsPage() {
             type="text"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="Tìm theo họ tên, tên đăng nhập, nội dung..."
+            placeholder="Tìm theo người thực hiện, mã CTV, nội dung..."
             className="input"
           />
         </div>
@@ -143,8 +144,8 @@ export default function SystemLogsPage() {
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Thời gian</th>
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Hành động</th>
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Kết quả</th>
-              <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Họ tên</th>
-              <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Tên đăng nhập</th>
+              <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Người thực hiện</th>
+              <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Mã CTV</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nội dung</th>
             </tr>
           </thead>
@@ -171,14 +172,22 @@ export default function SystemLogsPage() {
                   <td className="whitespace-nowrap px-4 py-3">
                     <ActivityResultBadge result={log.result} />
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-800 font-medium">{log.fullName || '—'}</td>
-                  <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-600 text-xs">{log.username || '—'}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <div className="font-medium text-slate-800">{log.fullName || '—'}</div>
+                    {log.username && log.username !== log.fullName && (
+                      <div className="text-xs text-slate-400 font-mono">{log.username}</div>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-primary font-semibold">
+                    {log.employeeCode ? log.employeeCode : '—'}
+                  </td>
                   <td className="px-4 py-3 text-slate-600 font-medium">{log.message}</td>
                 </tr>
               ))}
           </tbody>
         </table>
       </div>
+
 
       {!loading && filtered.length > 0 && (
         <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">

@@ -19,5 +19,7 @@ export interface ActivityLog {
   fullName: string;
   username: string;
   message: string;
+  employeeCode?: string | null;
   createdAt: string;
 }
+

@@ -3,8 +3,24 @@ import type { GrowthPoint } from '../../utils/dashboard';
 
 const WIDTH = 600;
 const HEIGHT = 200;
-const PAD_X = 12;
-const PAD_Y = 16;
+const PAD_LEFT = 36;
+const PAD_RIGHT = 12;
+const PAD_TOP = 16;
+const PAD_BOTTOM = 24;
+
+// Generate nice integer ticks for the Y axis
+function getYTicks(maxValue: number): number[] {
+  if (maxValue <= 4) {
+    return Array.from({ length: maxValue + 1 }, (_, i) => i);
+  }
+  const intervals = 4;
+  const ticks = new Set<number>([0]);
+  for (let i = 1; i < intervals; i++) {
+    ticks.add(Math.round((maxValue * i) / intervals));
+  }
+  ticks.add(maxValue);
+  return Array.from(ticks).sort((a, b) => a - b);
+}
 
 // Calculate control points for cubic Bezier curve interpolation
 function getBezierPath(points: { x: number; y: number }[]): string {
@@ -37,22 +53,53 @@ export default function GrowthChart({ data }: { data: GrowthPoint[] }) {
   }
 
   const maxValue = Math.max(...data.map((d) => d.value), 1);
-  const stepX = data.length > 1 ? (WIDTH - PAD_X * 2) / (data.length - 1) : 0;
+  const yTicks = getYTicks(maxValue);
+
+  const plotWidth = WIDTH - PAD_LEFT - PAD_RIGHT;
+  const plotHeight = HEIGHT - PAD_TOP - PAD_BOTTOM;
+
+  const stepX = data.length > 1 ? plotWidth / (data.length - 1) : 0;
 
   const points = data.map((d, i) => ({
-    x: PAD_X + i * stepX,
-    y: HEIGHT - PAD_Y - (d.value / maxValue) * (HEIGHT - PAD_Y * 2),
+    x: PAD_LEFT + i * stepX,
+    y: HEIGHT - PAD_BOTTOM - (d.value / maxValue) * plotHeight,
   }));
 
   const linePath = getBezierPath(points);
   const lastPoint = points[points.length - 1];
-  const areaPath = `${linePath} L ${lastPoint.x.toFixed(2)} ${HEIGHT - PAD_Y} L ${points[0].x.toFixed(2)} ${HEIGHT - PAD_Y} Z`;
+  const areaPath = `${linePath} L ${lastPoint.x.toFixed(2)} ${HEIGHT - PAD_BOTTOM} L ${points[0].x.toFixed(2)} ${HEIGHT - PAD_BOTTOM} Z`;
 
   const labelEvery = Math.max(1, Math.ceil(data.length / 7));
 
   return (
     <div className="relative">
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="h-48 w-full overflow-visible" preserveAspectRatio="none">
+        {/* Y-axis Grid lines & labels */}
+        {yTicks.map((v) => {
+          const y = HEIGHT - PAD_BOTTOM - (v / maxValue) * plotHeight;
+          return (
+            <g key={v}>
+              <line
+                x1={PAD_LEFT}
+                y1={y}
+                x2={WIDTH - PAD_RIGHT}
+                y2={y}
+                stroke="#e2e8f0"
+                strokeWidth="1"
+                strokeDasharray={v === 0 ? undefined : '3 3'}
+              />
+              <text
+                x={PAD_LEFT - 8}
+                y={y + 3.5}
+                textAnchor="end"
+                className="text-[10px] fill-slate-400 font-mono font-medium select-none"
+              >
+                {v}
+              </text>
+            </g>
+          );
+        })}
+
         {/* Area fill */}
         <path d={areaPath} fill="var(--color-primary)" fillOpacity="0.08" />
         
@@ -60,9 +107,9 @@ export default function GrowthChart({ data }: { data: GrowthPoint[] }) {
         {hoveredIndex !== null && (
           <line
             x1={points[hoveredIndex].x}
-            y1={PAD_Y}
+            y1={PAD_TOP}
             x2={points[hoveredIndex].x}
-            y2={HEIGHT - PAD_Y}
+            y2={HEIGHT - PAD_BOTTOM}
             stroke="#cbd5e1"
             strokeWidth="1.5"
             strokeDasharray="4 4"
@@ -102,8 +149,8 @@ export default function GrowthChart({ data }: { data: GrowthPoint[] }) {
 
         {/* Transparent hover interceptors */}
         {points.map((p, i) => {
-          const w = stepX || WIDTH;
-          const x = stepX ? p.x - w / 2 : 0;
+          const w = stepX || plotWidth;
+          const x = stepX ? p.x - w / 2 : PAD_LEFT;
           return (
             <rect
               key={i}
@@ -153,4 +200,5 @@ export default function GrowthChart({ data }: { data: GrowthPoint[] }) {
       )}
     </div>
   );
+
 }
