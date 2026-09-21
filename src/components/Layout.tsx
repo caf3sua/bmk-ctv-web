@@ -6,6 +6,7 @@ const navItems = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/collaborators', label: 'Hồ sơ cộng tác viên', end: true },
   { to: '/collaborators/upload-documents', label: 'Upload loại hồ sơ', end: false },
+  { to: '/reconciliation', label: 'Đối soát CTV', end: false },
 ];
 
 const adminNavGroup = {

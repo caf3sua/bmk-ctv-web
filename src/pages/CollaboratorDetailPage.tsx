@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Avatar from '../components/Avatar';
 import ConfirmModal from '../components/ConfirmModal';
+import CollaboratorActivityTimeline from '../components/CollaboratorActivityTimeline';
 import Layout from '../components/Layout';
 import ProfileStatusBadge from '../components/ProfileStatusBadge';
 import { ApiError } from '../services/api/client';
@@ -17,7 +18,7 @@ import { emptyCollaborator, type CollaboratorInput, type ServiceContractPeriod }
 import { getChecklistProgress, parseUploadedFileMeta } from '../utils/checklist';
 import { formatDate, formatDateTime } from '../utils/date';
 
-type TabKey = 'info' | 'checklist';
+type TabKey = 'info' | 'checklist' | 'history';
 
 export default function CollaboratorDetailPage() {
   const { employeeCode } = useParams<{ employeeCode: string }>();
@@ -339,6 +340,11 @@ export default function CollaboratorDetailPage() {
             <TabButton active={activeTab === 'checklist'} onClick={() => setActiveTab('checklist')}>
               Checklist hồ sơ
             </TabButton>
+            {!isNew && (
+              <TabButton active={activeTab === 'history'} onClick={() => setActiveTab('history')}>
+                Lịch sử
+              </TabButton>
+            )}
           </nav>
         </div>
 
@@ -688,23 +694,29 @@ export default function CollaboratorDetailPage() {
               </div>
             </section>
           )}
+
+          {activeTab === 'history' && employeeCode && (
+            <CollaboratorActivityTimeline employeeCode={employeeCode} />
+          )}
         </div>
 
-        <div className="mt-6 flex justify-end gap-3">
-          <Link
-            to="/collaborators"
-            className="btn-outline-dark"
-          >
-            Hủy
-          </Link>
-          <button
-            type="submit"
-            disabled={saving}
-            className="btn-primary"
-          >
-            {saving ? 'Đang lưu...' : 'Lưu hồ sơ'}
-          </button>
-        </div>
+        {activeTab !== 'history' && (
+          <div className="mt-6 flex justify-end gap-3">
+            <Link
+              to="/collaborators"
+              className="btn-outline-dark"
+            >
+              Hủy
+            </Link>
+            <button
+              type="submit"
+              disabled={saving}
+              className="btn-primary"
+            >
+              {saving ? 'Đang lưu...' : 'Lưu hồ sơ'}
+            </button>
+          </div>
+        )}
       </form>
 
       <ConfirmModal

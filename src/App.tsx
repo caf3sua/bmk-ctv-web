@@ -11,6 +11,7 @@ import UserDetailPage from './pages/UserDetailPage';
 import SystemLogsPage from './pages/SystemLogsPage';
 import UploadHistoryPage from './pages/UploadHistoryPage';
 import UploadDocumentsPage from './pages/UploadDocumentsPage';
+import ReconciliationPage from './pages/ReconciliationPage';
 
 export default function App() {
   return (
@@ -41,6 +42,18 @@ export default function App() {
                 <UploadDocumentsPage />
               </ProtectedRoute>
             }
+          />
+          <Route
+            path="/reconciliation"
+            element={
+              <ProtectedRoute>
+                <ReconciliationPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/collaborators/reconciliation"
+            element={<Navigate to="/reconciliation" replace />}
           />
           <Route
             path="/collaborators/:employeeCode"
