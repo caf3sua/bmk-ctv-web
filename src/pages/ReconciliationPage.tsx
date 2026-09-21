@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
-import { listReconciliations, syncBmkSystemInfo } from '../services/api/reconciliation';
+import { listReconciliations, syncBmkSystemInfo, importHrBmkFile, reconcileTpBankFile } from '../services/api/reconciliation';
 import type { ReconciliationRecord, TpBankContractItem } from '../types/reconciliation';
 import { formatDate } from '../utils/date';
 
@@ -36,12 +36,19 @@ export default function ReconciliationPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [importingHrBmk, setImportingHrBmk] = useState(false);
+  const [reconcilingTpBank, setReconcilingTpBank] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const tpbankFileInputRef = useRef<HTMLInputElement>(null);
 
   // Filters
   const [keyword, setKeyword] = useState('');
   const [employmentStatus, setEmploymentStatus] = useState('all');
   const [createdSource, setCreatedSource] = useState('all');
+  const [isSyncedFilter, setIsSyncedFilter] = useState('all');
+  const [resultStatusFilter, setResultStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
 
@@ -54,7 +61,7 @@ export default function ReconciliationPage() {
 
   useEffect(() => {
     loadData();
-  }, [keyword, employmentStatus, createdSource, page, pageSize]);
+  }, [keyword, employmentStatus, createdSource, isSyncedFilter, resultStatusFilter, page, pageSize]);
 
   async function loadData() {
     setLoading(true);
@@ -63,6 +70,8 @@ export default function ReconciliationPage() {
         keyword: keyword.trim() || undefined,
         employment_status: employmentStatus,
         created_source: createdSource,
+        is_synced: isSyncedFilter,
+        result_status: resultStatusFilter,
         page,
         page_size: pageSize,
       });
@@ -91,6 +100,44 @@ export default function ReconciliationPage() {
     }
   }
 
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingHrBmk(true);
+    setSyncMessage(null);
+    try {
+      const res = await importHrBmkFile(file);
+      setSyncMessage(res.message);
+      await loadData();
+    } catch (err: any) {
+      setSyncMessage(`Import HR BMK thất bại: ${err.message || 'Đã có lỗi xảy ra'}`);
+    } finally {
+      setImportingHrBmk(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }
+
+  async function handleTpBankFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setReconcilingTpBank(true);
+    setSyncMessage(null);
+    try {
+      const res = await reconcileTpBankFile(file);
+      setSyncMessage(res.message);
+      await loadData();
+    } catch (err: any) {
+      setSyncMessage(`Đối soát TP Bank thất bại: ${err.message || 'Đã có lỗi xảy ra'}`);
+    } finally {
+      setReconcilingTpBank(false);
+      if (tpbankFileInputRef.current) {
+        tpbankFileInputRef.current.value = '';
+      }
+    }
+  }
+
   return (
     <Layout>
       {/* Header */}
@@ -103,6 +150,70 @@ export default function ReconciliationPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="file"
+            ref={tpbankFileInputRef}
+            onChange={handleTpBankFileChange}
+            accept=".xlsx,.xlsm"
+            className="hidden"
+          />
+
+          <button
+            type="button"
+            onClick={() => tpbankFileInputRef.current?.click()}
+            disabled={reconcilingTpBank}
+            className="btn-primary px-4 py-2 text-xs flex items-center gap-2 border-purple-600 bg-purple-600 hover:bg-purple-700 text-white shadow-sm"
+            title="Upload file Excel Đối soát TP Bank"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className={`h-4 w-4 ${reconcilingTpBank ? 'animate-spin' : ''}`}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            {reconcilingTpBank ? 'Đang đối soát...' : 'Đối soát'}
+          </button>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".xlsx,.xlsm"
+            className="hidden"
+          />
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importingHrBmk}
+            className="btn-secondary px-4 py-2 text-xs flex items-center gap-2 border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100"
+            title="Upload file Excel dữ liệu HR BMK vào hệ thống đối soát"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className={`h-4 w-4 ${importingHrBmk ? 'animate-spin' : ''}`}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+              />
+            </svg>
+            {importingHrBmk ? 'Đang nhập...' : 'Import HR BMK'}
+          </button>
+
           <button
             type="button"
             onClick={handleSyncSystemInfo}
@@ -137,6 +248,7 @@ export default function ReconciliationPage() {
           </button>
         </div>
       </div>
+
 
       {/* Sync Status Alert */}
       {syncMessage && (
@@ -195,6 +307,34 @@ export default function ReconciliationPage() {
         </select>
 
         <select
+          value={isSyncedFilter}
+          onChange={(e) => {
+            setIsSyncedFilter(e.target.value);
+            setPage(1);
+          }}
+          className="input w-auto text-xs"
+        >
+          <option value="all">Tất cả trạng thái đối soát</option>
+          <option value="synced">Đã đối soát</option>
+          <option value="unsynced">Chưa đối soát</option>
+        </select>
+
+        <select
+          value={resultStatusFilter}
+          onChange={(e) => {
+            setResultStatusFilter(e.target.value);
+            setPage(1);
+          }}
+          className="input w-auto text-xs"
+        >
+          <option value="all">Tất cả kết quả đối soát</option>
+          <option value="match_all">Khớp tất cả</option>
+          <option value="mismatch_contract">Lệch SL HĐ</option>
+          <option value="mismatch_idcard">Lệch CCCD</option>
+          <option value="mismatch_liquidation">Lệch BBTL</option>
+        </select>
+
+        <select
           value={pageSize}
           onChange={(e) => {
             setPageSize(Number(e.target.value));
@@ -217,17 +357,20 @@ export default function ReconciliationPage() {
             {/* Header Tier 1: Categories */}
             <thead className="bg-slate-50 text-slate-700 font-semibold uppercase tracking-wider">
               <tr>
-                <th colSpan={7} className="px-3 py-2.5 text-center border-r border-border-subtle/80 bg-slate-100/70">
+                <th colSpan={5} className="px-3 py-2.5 text-center border-r border-border-subtle/80 bg-slate-100/70">
                   Thông tin nhân sự
                 </th>
-                <th colSpan={3} className="px-3 py-2.5 text-center border-r border-border-subtle/80 bg-sky-50/80 text-sky-900">
+                <th colSpan={1} className="px-3 py-2.5 text-center border-r border-border-subtle/80 bg-sky-50/80 text-sky-900">
                   Nhân sự TP Bank
                 </th>
-                <th colSpan={4} className="px-3 py-2.5 text-center border-r border-border-subtle/80 bg-amber-50/80 text-amber-900">
+                <th colSpan={3} className="px-3 py-2.5 text-center border-r border-border-subtle/80 bg-amber-50/80 text-amber-900">
                   Nhân sự BMK
                 </th>
-                <th colSpan={4} className="px-3 py-2.5 text-center bg-emerald-50/80 text-emerald-900">
-                  Hệ thống BMK (bmk_ctv_collaborators)
+                <th colSpan={3} className="px-3 py-2.5 text-center border-r border-border-subtle/80 bg-emerald-50/80 text-emerald-900">
+                  Hệ thống BMK
+                </th>
+                <th colSpan={3} className="px-3 py-2.5 text-center bg-purple-50/80 text-purple-900">
+                  Kết quả đối soát
                 </th>
               </tr>
               {/* Header Tier 2: Sub-columns */}
@@ -236,27 +379,26 @@ export default function ReconciliationPage() {
                 <th className="px-3 py-2 whitespace-nowrap">Mã NV</th>
                 <th className="px-3 py-2 whitespace-nowrap">Họ và tên</th>
                 <th className="px-3 py-2 whitespace-nowrap text-center">Nguồn tạo</th>
-                <th className="px-3 py-2 whitespace-nowrap">Đơn vị cấp 1</th>
-                <th className="px-3 py-2 whitespace-nowrap">Chức danh</th>
                 <th className="px-3 py-2 whitespace-nowrap">Tình trạng</th>
                 <th className="px-3 py-2 whitespace-nowrap border-r border-border-subtle/80">Ngày vào / nghỉ</th>
 
                 {/* TP Bank */}
-                <th className="px-3 py-2 whitespace-nowrap text-center">Số HĐ</th>
-                <th className="px-3 py-2 whitespace-nowrap">Hợp đồng TP Bank</th>
-                <th className="px-3 py-2 whitespace-nowrap border-r border-border-subtle/80">HRBP / Note</th>
+                <th className="px-3 py-2 whitespace-nowrap text-center border-r border-border-subtle/80" title="Số lượng Hợp đồng dịch vụ cần có theo quy tắc đối soát TP Bank">Số HĐ cần có</th>
 
                 {/* Nhân sự BMK */}
                 <th className="px-2 py-2 text-center whitespace-nowrap" title="Số lượng Hợp đồng dịch vụ">SL HĐ</th>
                 <th className="px-2 py-2 text-center whitespace-nowrap" title="Số lượng CCCD">CCCD</th>
-                <th className="px-2 py-2 text-center whitespace-nowrap" title="Số lượng Biên bản thanh lý">BBTL</th>
-                <th className="px-2 py-2 text-center whitespace-nowrap border-r border-border-subtle/80" title="Số lượng cam kết thuế 08">CKT 08</th>
+                <th className="px-2 py-2 text-center whitespace-nowrap border-r border-border-subtle/80" title="Số lượng Biên bản thanh lý">BBTL</th>
 
                 {/* Hệ thống BMK */}
                 <th className="px-2 py-2 text-center whitespace-nowrap" title="Số lượng Hợp đồng dịch vụ trên hệ thống">SL HĐ</th>
                 <th className="px-2 py-2 text-center whitespace-nowrap" title="Số lượng CCCD trên hệ thống">CCCD</th>
-                <th className="px-2 py-2 text-center whitespace-nowrap" title="Số lượng Biên bản thanh lý trên hệ thống">BBTL</th>
-                <th className="px-2 py-2 text-center whitespace-nowrap" title="Số lượng cam kết thuế 08 trên hệ thống">CKT 08</th>
+                <th className="px-2 py-2 text-center whitespace-nowrap border-r border-border-subtle/80" title="Số lượng Biên bản thanh lý trên hệ thống">BBTL</th>
+
+                {/* Kết quả đối soát */}
+                <th className="px-2 py-2 text-center whitespace-nowrap" title="Kết quả đối soát Số lượng Hợp đồng">SL HĐ</th>
+                <th className="px-2 py-2 text-center whitespace-nowrap" title="Kết quả đối soát CCCD">CCCD</th>
+                <th className="px-2 py-2 text-center whitespace-nowrap" title="Kết quả đối soát Biên bản thanh lý">BBTL</th>
               </tr>
             </thead>
 
@@ -264,7 +406,7 @@ export default function ReconciliationPage() {
             <tbody className="divide-y divide-border-subtle/60 bg-white">
               {loading ? (
                 <tr>
-                  <td colSpan={18} className="p-8 text-center text-slate-500">
+                  <td colSpan={15} className="p-8 text-center text-slate-500">
                     <div className="flex items-center justify-center gap-2">
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                       <span>Đang tải danh sách đối soát...</span>
@@ -273,7 +415,7 @@ export default function ReconciliationPage() {
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
-                  <td colSpan={18} className="p-12 text-center text-slate-500">
+                  <td colSpan={15} className="p-12 text-center text-slate-500">
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
@@ -288,13 +430,21 @@ export default function ReconciliationPage() {
               ) : (
                 records.map((r) => {
                   const contracts = r.tpbankInfo?.contracts || [];
-                  const latestContract = contracts.length > 0 ? contracts[contracts.length - 1] : null;
 
                   return (
                     <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
                       {/* Nhân sự */}
-                      <td className="px-3 py-2.5 font-mono font-bold text-slate-800 whitespace-nowrap">
-                        {r.employeeCode}
+                      <td className="px-3 py-2.5 font-mono text-slate-800 whitespace-nowrap">
+                        <div className="font-bold">{r.employeeCode}</div>
+                        {r.isSynced ? (
+                          <span className="inline-block rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 text-[9px] font-semibold mt-0.5">
+                            Đã đối soát
+                          </span>
+                        ) : (
+                          <span className="inline-block rounded bg-slate-100 text-slate-400 border border-slate-200 px-1.5 py-0.2 text-[9px] font-semibold mt-0.5">
+                            Chưa đối soát
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 font-medium text-slate-900 whitespace-nowrap">
                         <div>{r.fullName || '—'}</div>
@@ -307,19 +457,12 @@ export default function ReconciliationPage() {
                       <td className="px-3 py-2.5 text-center whitespace-nowrap">
                         {renderSourceBadge(r.createdSource)}
                       </td>
-                      <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">
-                        {r.departmentLevel1 || '—'}
-                      </td>
-                      <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">
-                        {r.position || '—'}
-                      </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
                         <span
-                          className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                            r.employmentStatus === 'Nghỉ việc'
-                              ? 'bg-danger/10 text-danger'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          }`}
+                          className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${r.employmentStatus === 'Nghỉ việc'
+                            ? 'bg-danger/10 text-danger'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            }`}
                         >
                           {r.employmentStatus || 'Hiện diện'}
                         </span>
@@ -330,48 +473,35 @@ export default function ReconciliationPage() {
                       </td>
 
                       {/* TP Bank */}
-                      <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                        {contracts.length > 0 ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setSelectedContracts({
-                                employeeCode: r.employeeCode,
-                                fullName: r.fullName,
-                                contracts,
-                              })
-                            }
-                            className="inline-flex items-center justify-center rounded-full bg-sky-100 text-sky-800 font-bold px-2 py-0.5 text-[11px] hover:bg-sky-200 cursor-pointer"
-                            title="Xem chi tiết danh sách hợp đồng TP Bank"
-                          >
-                            {contracts.length} HĐ &rarr;
-                          </button>
-                        ) : (
-                          <span className="text-slate-400 font-mono">0</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap max-w-[200px] truncate">
-                        {latestContract ? (
-                          <div>
-                            <div className="font-semibold text-slate-800 font-mono truncate" title={latestContract.contractNumber}>
-                              {latestContract.contractNumber || 'Chưa có số'}
-                            </div>
-                            <div className="text-[10px] text-slate-400 font-mono">
-                              {formatDate(latestContract.effectiveDate)} &rarr; {formatDate(latestContract.expiryDate)}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap border-r border-border-subtle/80">
-                        {latestContract?.hrbp ? (
-                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono text-slate-700">
-                            {latestContract.hrbp}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
+                      <td className="px-3 py-2.5 text-center whitespace-nowrap border-r border-border-subtle/80">
+                        <div className="flex flex-col items-center gap-1">
+                          {!r.onboardDate || r.tpbankInfo?.contractCount === null || r.tpbankInfo?.contractCount === undefined ? (
+                            <span className="text-slate-400 font-sans text-[11px] italic">Chưa có thông tin</span>
+                          ) : (
+                            <span
+                              className="inline-block rounded-full bg-purple-100 text-purple-800 font-bold px-2 py-0.5 text-[11px]"
+                              title="Số hợp đồng tính theo quy tắc đối soát TP Bank"
+                            >
+                              {r.tpbankInfo.contractCount} HĐ
+                            </span>
+                          )}
+                          {contracts.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedContracts({
+                                  employeeCode: r.employeeCode,
+                                  fullName: r.fullName,
+                                  contracts,
+                                })
+                              }
+                              className="inline-flex items-center justify-center rounded bg-sky-50 text-sky-700 font-medium px-1.5 py-0.5 text-[10px] hover:bg-sky-100 cursor-pointer"
+                              title="Xem chi tiết danh sách hợp đồng TP Bank"
+                            >
+                              {contracts.length} chi tiết &rarr;
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Nhân sự BMK */}
@@ -381,116 +511,131 @@ export default function ReconciliationPage() {
                       <td className="px-2 py-2.5 text-center font-mono font-semibold text-slate-700">
                         <CountBadge count={r.bmkHrInfo?.idCardCount || 0} />
                       </td>
-                      <td className="px-2 py-2.5 text-center font-mono font-semibold text-slate-700">
-                        <CountBadge count={r.bmkHrInfo?.liquidationCount || 0} />
-                      </td>
                       <td className="px-2 py-2.5 text-center font-mono font-semibold text-slate-700 border-r border-border-subtle/80">
-                        <CountBadge count={r.bmkHrInfo?.taxCommitmentCount || 0} />
+                        <CountBadge count={r.bmkHrInfo?.liquidationCount || 0} />
                       </td>
 
                       {/* Hệ thống BMK */}
-                      <td className="px-2 py-2.5 text-center font-mono font-semibold text-emerald-700">
-                        <CountBadge count={r.bmkSystemInfo?.contractCount || 0} variant="success" />
+                      {r.isBmkSystemExist === false ? (
+                        <td colSpan={3} className="px-2 py-2.5 text-center font-sans text-[11px] text-rose-500 font-medium bg-rose-50/30 border-r border-border-subtle/80">
+                          Nhân viên không tồn tại
+                        </td>
+                      ) : (
+                        <>
+                          <td className="px-2 py-2.5 text-center font-mono font-semibold text-emerald-700">
+                            <CountBadge count={r.bmkSystemInfo?.contractCount || 0} variant="success" />
+                          </td>
+                          <td className="px-2 py-2.5 text-center font-mono font-semibold text-emerald-700">
+                            <CountBadge count={r.bmkSystemInfo?.idCardCount || 0} variant="success" />
+                          </td>
+                          <td className="px-2 py-2.5 text-center font-mono font-semibold text-emerald-700 border-r border-border-subtle/80">
+                            <CountBadge count={r.bmkSystemInfo?.liquidationCount || 0} variant="success" />
+                          </td>
+                        </>
+                      )}
+
+                      {/* Kết quả đối soát */}
+                      <td className="px-2 py-2.5 text-center">
+                        <ResultBadge status={r.result?.contract} />
                       </td>
-                      <td className="px-2 py-2.5 text-center font-mono font-semibold text-emerald-700">
-                        <CountBadge count={r.bmkSystemInfo?.idCardCount || 0} variant="success" />
+                      <td className="px-2 py-2.5 text-center">
+                        <ResultBadge status={r.result?.idCard} />
                       </td>
-                      <td className="px-2 py-2.5 text-center font-mono font-semibold text-emerald-700">
-                        <CountBadge count={r.bmkSystemInfo?.liquidationCount || 0} variant="success" />
-                      </td>
-                      <td className="px-2 py-2.5 text-center font-mono font-semibold text-emerald-700">
-                        <CountBadge count={r.bmkSystemInfo?.taxCommitmentCount || 0} variant="success" />
+                      <td className="px-2 py-2.5 text-center">
+                        <ResultBadge status={r.result?.liquidation} />
                       </td>
                     </tr>
                   );
                 })
               )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Footer & Pagination */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle/60 p-4">
-          <p className="text-xs text-slate-500">
-            Hiển thị <span className="font-semibold text-slate-800">{records.length}</span> /{' '}
-            <span className="font-semibold text-slate-800">{total}</span> cộng tác viên đối soát
-          </p>
-
-          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-        </div>
+          </tbody>
+        </table>
       </div>
 
-      {/* Modal: View Details of TP Bank Contracts */}
-      {selectedContracts && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Danh sách hợp đồng TP Bank</h3>
-                <p className="text-xs text-slate-500 font-mono">
-                  CTV: {selectedContracts.fullName} ({selectedContracts.employeeCode})
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedContracts(null)}
-                className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
+      {/* Footer & Pagination */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle/60 p-4">
+        <p className="text-xs text-slate-500">
+          Hiển thị <span className="font-semibold text-slate-800">{records.length}</span> /{' '}
+          <span className="font-semibold text-slate-800">{total}</span> cộng tác viên đối soát
+        </p>
 
-            <div className="mt-4 space-y-3">
-              {selectedContracts.contracts.map((c, idx) => (
-                <div key={idx} className="rounded-xl border border-border-subtle/80 bg-slate-50 p-3.5 text-xs space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 font-mono text-sm">
-                      #{idx + 1}. {c.contractNumber || 'Chưa có số HĐ'}
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      </div>
+    </div>
+
+      {/* Modal: View Details of TP Bank Contracts */ }
+  {
+    selectedContracts && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+        <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl max-h-[85vh] overflow-y-auto">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Danh sách hợp đồng TP Bank</h3>
+              <p className="text-xs text-slate-500 font-mono">
+                CTV: {selectedContracts.fullName} ({selectedContracts.employeeCode})
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedContracts(null)}
+              className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {selectedContracts.contracts.map((c, idx) => (
+              <div key={idx} className="rounded-xl border border-border-subtle/80 bg-slate-50 p-3.5 text-xs space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 font-mono text-sm">
+                    #{idx + 1}. {c.contractNumber || 'Chưa có số HĐ'}
+                  </span>
+                  {c.status && (
+                    <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-800">
+                      {c.status}
                     </span>
-                    {c.status && (
-                      <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-800">
-                        {c.status}
-                      </span>
-                    )}
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-slate-600">
+                  <div>
+                    <span className="text-slate-400">Hiệu lực: </span>
+                    <span className="font-mono">{formatDate(c.effectiveDate)}</span> &rarr;{' '}
+                    <span className="font-mono">{formatDate(c.expiryDate)}</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-slate-600">
-                    <div>
-                      <span className="text-slate-400">Hiệu lực: </span>
-                      <span className="font-mono">{formatDate(c.effectiveDate)}</span> &rarr;{' '}
-                      <span className="font-mono">{formatDate(c.expiryDate)}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Kỳ / Năm: </span>
-                      <span className="font-mono">{c.period || '—'} / {c.year || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">HRBP: </span>
-                      <span className="font-mono font-semibold">{c.hrbp || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Ghi chú: </span>
-                      <span>{c.note || '—'}</span>
-                    </div>
+                  <div>
+                    <span className="text-slate-400">Kỳ / Năm: </span>
+                    <span className="font-mono">{c.period || '—'} / {c.year || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">HRBP: </span>
+                    <span className="font-mono font-semibold">{c.hrbp || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Ghi chú: </span>
+                    <span>{c.note || '—'}</span>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
+          </div>
 
-            <div className="mt-5 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setSelectedContracts(null)}
-                className="btn-secondary px-4 py-1.5 text-xs"
-              >
-                Đóng
-              </button>
-            </div>
+          <div className="mt-5 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setSelectedContracts(null)}
+              className="btn-secondary px-4 py-1.5 text-xs"
+            >
+              Đóng
+            </button>
           </div>
         </div>
-      )}
-    </Layout>
+      </div>
+    )
+  }
+    </Layout >
   );
 }
 
@@ -508,4 +653,25 @@ function CountBadge({ count, variant = 'default' }: { count: number; variant?: '
       {count}
     </span>
   );
+}
+
+function ResultBadge({ status }: { status?: string | null }) {
+  if (!status) {
+    return <span className="text-slate-300 font-mono">—</span>;
+  }
+  if (status === 'success') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold">
+        ✓ Khớp
+      </span>
+    );
+  }
+  if (status === 'failed') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.5 text-[10px] font-semibold">
+        ✕ Lệch
+      </span>
+    );
+  }
+  return <span className="text-slate-400 font-mono text-[10px]">{status}</span>;
 }

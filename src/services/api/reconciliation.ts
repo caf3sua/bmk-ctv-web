@@ -1,4 +1,5 @@
 import type {
+  ImportHrBmkResult,
   ListReconciliationParams,
   ReconciliationListResponse,
   ReconciliationRecord,
@@ -20,6 +21,12 @@ export async function listReconciliations(
   if (params?.created_source && params.created_source !== 'all') {
     query.set('created_source', params.created_source);
   }
+  if (params?.is_synced && params.is_synced !== 'all') {
+    query.set('is_synced', params.is_synced);
+  }
+  if (params?.result_status && params.result_status !== 'all') {
+    query.set('result_status', params.result_status);
+  }
   if (params?.page) query.set('page', String(params.page));
   if (params?.page_size) query.set('page_size', String(params.page_size));
 
@@ -37,3 +44,22 @@ export async function syncBmkSystemInfo(): Promise<SyncSystemInfoResult> {
     body: JSON.stringify({}),
   });
 }
+
+export async function importHrBmkFile(file: File): Promise<ImportHrBmkResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiFetch<ImportHrBmkResult>('/reconciliation/import-hr-bmk', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function reconcileTpBankFile(file: File): Promise<ImportHrBmkResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiFetch<ImportHrBmkResult>('/reconciliation/reconcile-tpbank', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
