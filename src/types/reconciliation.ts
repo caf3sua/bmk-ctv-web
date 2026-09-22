@@ -10,7 +10,8 @@ export interface TpBankContractItem {
 }
 
 export interface TpBankInfo {
-  contractCount?: number | null;
+  estimatedContractCount?: number | null;
+  hrContractCount?: number | null;
   contracts: TpBankContractItem[];
 }
 
@@ -29,7 +30,7 @@ export interface BmkSystemInfo {
 }
 
 export interface ReconciliationResultDetail {
-  contract?: 'success' | 'failed' | null;
+  contract?: 'success' | 'failed' | 'warn' | null;
   idCard?: 'success' | 'failed' | null;
   liquidation?: 'success' | 'failed' | null;
   taxCommitment?: 'success' | 'failed' | null;
@@ -86,6 +87,14 @@ export interface SyncSystemInfoResult {
 }
 
 export interface ImportHrBmkResult {
+  status: string;
+  message: string;
+  totalProcessed: number;
+  createdCount: number;
+  updatedCount: number;
+}
+
+export interface ImportHrTpBankResult {
   status: string;
   message: string;
   totalProcessed: number;

@@ -1,5 +1,6 @@
 import type {
   ImportHrBmkResult,
+  ImportHrTpBankResult,
   ListReconciliationParams,
   ReconciliationListResponse,
   ReconciliationRecord,
@@ -62,4 +63,14 @@ export async function reconcileTpBankFile(file: File): Promise<ImportHrBmkResult
     body: formData,
   });
 }
+
+export async function importHrTpBankFile(file: File): Promise<ImportHrTpBankResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiFetch<ImportHrTpBankResult>('/reconciliation/import-hr-tpbank', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
 

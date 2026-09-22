@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
-import { listReconciliations, syncBmkSystemInfo, importHrBmkFile, reconcileTpBankFile } from '../services/api/reconciliation';
+import { listReconciliations, syncBmkSystemInfo, importHrBmkFile, reconcileTpBankFile, importHrTpBankFile } from '../services/api/reconciliation';
 import type { ReconciliationRecord, TpBankContractItem } from '../types/reconciliation';
 import { formatDate } from '../utils/date';
 
@@ -9,6 +9,13 @@ const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
 function renderSourceBadge(source?: string | null) {
   const s = (source || 'bmk_system').toLowerCase();
+  if (s.includes('hr tp bank') || s.includes('hr tpbank') || s.includes('hr_tpbank')) {
+    return (
+      <span className="inline-block rounded-full bg-sky-50 text-sky-700 border border-sky-200 px-2 py-0.5 text-[10px] font-semibold">
+        HR TP Bank
+      </span>
+    );
+  }
   if (s.includes('tpbank') || s.includes('tp_bank') || s.includes('tp bank')) {
     return (
       <span className="inline-block rounded-full bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 text-[10px] font-semibold">
@@ -37,11 +44,13 @@ export default function ReconciliationPage() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [importingHrBmk, setImportingHrBmk] = useState(false);
+  const [importingHrTpBank, setImportingHrTpBank] = useState(false);
   const [reconcilingTpBank, setReconcilingTpBank] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const tpbankFileInputRef = useRef<HTMLInputElement>(null);
+  const hrTpBankFileInputRef = useRef<HTMLInputElement>(null);
 
   // Filters
   const [keyword, setKeyword] = useState('');
@@ -138,6 +147,25 @@ export default function ReconciliationPage() {
     }
   }
 
+  async function handleHrTpBankFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingHrTpBank(true);
+    setSyncMessage(null);
+    try {
+      const res = await importHrTpBankFile(file);
+      setSyncMessage(res.message);
+      await loadData();
+    } catch (err: any) {
+      setSyncMessage(`Import HĐ TP Bank thất bại: ${err.message || 'Đã có lỗi xảy ra'}`);
+    } finally {
+      setImportingHrTpBank(false);
+      if (hrTpBankFileInputRef.current) {
+        hrTpBankFileInputRef.current.value = '';
+      }
+    }
+  }
+
   return (
     <Layout>
       {/* Header */}
@@ -180,6 +208,38 @@ export default function ReconciliationPage() {
               />
             </svg>
             {reconcilingTpBank ? 'Đang đối soát...' : 'Đối soát'}
+          </button>
+
+          <input
+            type="file"
+            ref={hrTpBankFileInputRef}
+            onChange={handleHrTpBankFileChange}
+            accept=".xlsx,.xlsm"
+            className="hidden"
+          />
+
+          <button
+            type="button"
+            onClick={() => hrTpBankFileInputRef.current?.click()}
+            disabled={importingHrTpBank}
+            className="btn-secondary px-4 py-2 text-xs flex items-center gap-2 border-sky-300 text-sky-800 bg-sky-50 hover:bg-sky-100"
+            title="Upload file Excel SL Hợp đồng TP Bank (template_ctv_hr_tpbank.xlsx)"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className={`h-4 w-4 ${importingHrTpBank ? 'animate-spin' : ''}`}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+              />
+            </svg>
+            {importingHrTpBank ? 'Đang nhập...' : 'Import HĐ TP Bank'}
           </button>
 
           <input
@@ -303,6 +363,7 @@ export default function ReconciliationPage() {
           <option value="all">Tất cả nguồn tạo</option>
           <option value="bmk_system">Hệ thống BMK</option>
           <option value="bmk_hr">HR BMK</option>
+          <option value="hr_tpbank">HR TP Bank</option>
           <option value="tpbank">TP Bank</option>
         </select>
 
@@ -329,6 +390,7 @@ export default function ReconciliationPage() {
         >
           <option value="all">Tất cả kết quả đối soát</option>
           <option value="match_all">Khớp tất cả</option>
+          <option value="warn_bank_contract">SL HĐ lệch với bank</option>
           <option value="mismatch_contract">Lệch SL HĐ</option>
           <option value="mismatch_idcard">Lệch CCCD</option>
           <option value="mismatch_liquidation">Lệch BBTL</option>
@@ -360,7 +422,7 @@ export default function ReconciliationPage() {
                 <th colSpan={5} className="px-3 py-2.5 text-center border-r border-border-subtle/80 bg-slate-100/70">
                   Thông tin nhân sự
                 </th>
-                <th colSpan={1} className="px-3 py-2.5 text-center border-r border-border-subtle/80 bg-sky-50/80 text-sky-900">
+                <th colSpan={2} className="px-3 py-2.5 text-center border-r border-border-subtle/80 bg-sky-50/80 text-sky-900">
                   Nhân sự TP Bank
                 </th>
                 <th colSpan={3} className="px-3 py-2.5 text-center border-r border-border-subtle/80 bg-amber-50/80 text-amber-900">
@@ -383,7 +445,8 @@ export default function ReconciliationPage() {
                 <th className="px-3 py-2 whitespace-nowrap border-r border-border-subtle/80">Ngày vào / nghỉ</th>
 
                 {/* TP Bank */}
-                <th className="px-3 py-2 whitespace-nowrap text-center border-r border-border-subtle/80" title="Số lượng Hợp đồng dịch vụ cần có theo quy tắc đối soát TP Bank">Số HĐ cần có</th>
+                <th className="px-3 py-2 whitespace-nowrap text-center" title="Số lượng Hợp đồng dịch vụ dự tính theo quy tắc đối soát TP Bank">Est.HĐ</th>
+                <th className="px-3 py-2 whitespace-nowrap text-center border-r border-border-subtle/80" title="Số lượng Hợp đồng theo file HR TP Bank cung cấp">HR.HĐ</th>
 
                 {/* Nhân sự BMK */}
                 <th className="px-2 py-2 text-center whitespace-nowrap" title="Số lượng Hợp đồng dịch vụ">SL HĐ</th>
@@ -406,7 +469,7 @@ export default function ReconciliationPage() {
             <tbody className="divide-y divide-border-subtle/60 bg-white">
               {loading ? (
                 <tr>
-                  <td colSpan={15} className="p-8 text-center text-slate-500">
+                  <td colSpan={16} className="p-8 text-center text-slate-500">
                     <div className="flex items-center justify-center gap-2">
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                       <span>Đang tải danh sách đối soát...</span>
@@ -415,7 +478,7 @@ export default function ReconciliationPage() {
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="p-12 text-center text-slate-500">
+                  <td colSpan={16} className="p-12 text-center text-slate-500">
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
@@ -473,16 +536,16 @@ export default function ReconciliationPage() {
                       </td>
 
                       {/* TP Bank */}
-                      <td className="px-3 py-2.5 text-center whitespace-nowrap border-r border-border-subtle/80">
+                      <td className="px-3 py-2.5 text-center whitespace-nowrap">
                         <div className="flex flex-col items-center gap-1">
-                          {!r.onboardDate || r.tpbankInfo?.contractCount === null || r.tpbankInfo?.contractCount === undefined ? (
+                          {!r.onboardDate || r.tpbankInfo?.estimatedContractCount === null || r.tpbankInfo?.estimatedContractCount === undefined ? (
                             <span className="text-slate-400 font-sans text-[11px] italic">Chưa có thông tin</span>
                           ) : (
                             <span
                               className="inline-block rounded-full bg-purple-100 text-purple-800 font-bold px-2 py-0.5 text-[11px]"
-                              title="Số hợp đồng tính theo quy tắc đối soát TP Bank"
+                              title="Số hợp đồng dự tính theo quy tắc đối soát TP Bank"
                             >
-                              {r.tpbankInfo.contractCount} HĐ
+                              {r.tpbankInfo.estimatedContractCount} HĐ
                             </span>
                           )}
                           {contracts.length > 0 && (
@@ -502,6 +565,13 @@ export default function ReconciliationPage() {
                             </button>
                           )}
                         </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-center font-mono font-semibold text-slate-700 whitespace-nowrap border-r border-border-subtle/80">
+                        {r.tpbankInfo?.hrContractCount !== null && r.tpbankInfo?.hrContractCount !== undefined ? (
+                          <CountBadge count={r.tpbankInfo.hrContractCount} />
+                        ) : (
+                          <span className="text-slate-400 font-sans text-[11px] italic">—</span>
+                        )}
                       </td>
 
                       {/* Nhân sự BMK */}
@@ -663,6 +733,16 @@ function ResultBadge({ status }: { status?: string | null }) {
     return (
       <span className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold">
         ✓ Khớp
+      </span>
+    );
+  }
+  if (status === 'warn') {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded bg-amber-50 text-amber-700 border border-amber-300 px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap"
+        title="Cảnh báo: Số lượng HĐ dự tính lệch với số lượng HĐ từ file HR TP Bank"
+      >
+        ⚠ Lệch Bank
       </span>
     );
   }
