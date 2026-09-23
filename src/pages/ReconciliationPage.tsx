@@ -1,11 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
-import { listReconciliations, syncBmkSystemInfo, importHrBmkFile, reconcileTpBankFile, importHrTpBankFile } from '../services/api/reconciliation';
-import type { ReconciliationRecord, TpBankContractItem } from '../types/reconciliation';
-import { formatDate } from '../utils/date';
+import {
+  listReconciliations,
+  syncBmkSystemInfo,
+  importHrBmkFile,
+  reconcileTpBankFile,
+  importHrTpBankFile,
+  listReconciliationHistory,
+  downloadReconciliationHistoryFile,
+  downloadReconciliationResultFile,
+} from '../services/api/reconciliation';
+import type {
+  ReconciliationRecord,
+  TpBankContractItem,
+  ReconciliationHistoryItem,
+} from '../types/reconciliation';
+import { formatDate, formatDateTime, formatRelativeTime } from '../utils/date';
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100];
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes || bytes <= 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function renderSourceBadge(source?: string | null) {
   const s = (source || 'bmk_system').toLowerCase();
@@ -37,7 +57,10 @@ function renderSourceBadge(source?: string | null) {
   );
 }
 
+type ReconciliationTabKey = 'list' | 'history';
+
 export default function ReconciliationPage() {
+  const [activeTab, setActiveTab] = useState<ReconciliationTabKey>('list');
   const [records, setRecords] = useState<ReconciliationRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -68,9 +91,67 @@ export default function ReconciliationPage() {
     contracts: TpBankContractItem[];
   } | null>(null);
 
+  // History Tab State
+  const [historyRecords, setHistoryRecords] = useState<ReconciliationHistoryItem[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize] = useState(20);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [downloadingHistoryId, setDownloadingHistoryId] = useState<string | null>(null);
+  const [downloadingResultId, setDownloadingResultId] = useState<string | null>(null);
+
   useEffect(() => {
     loadData();
   }, [keyword, employmentStatus, createdSource, isSyncedFilter, resultStatusFilter, page, pageSize]);
+
+  useEffect(() => {
+    loadHistory();
+  }, [historyPage, historyPageSize]);
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      loadHistory();
+    }
+  }, [activeTab]);
+
+  async function loadHistory() {
+    setHistoryLoading(true);
+    try {
+      const res = await listReconciliationHistory(historyPage, historyPageSize);
+      setHistoryRecords(res.items);
+      setHistoryTotal(res.total);
+      setHistoryTotalPages(res.totalPages);
+    } catch (err) {
+      console.error('Error fetching reconciliation history:', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  async function handleDownloadHistory(id: string, filename: string) {
+    if (downloadingHistoryId) return;
+    setDownloadingHistoryId(id);
+    try {
+      await downloadReconciliationHistoryFile(id, filename);
+    } catch (err) {
+      console.error('Download failed:', err);
+    } finally {
+      setDownloadingHistoryId(null);
+    }
+  }
+
+  async function handleDownloadResult(id: string, filename: string) {
+    if (downloadingResultId) return;
+    setDownloadingResultId(id);
+    try {
+      await downloadReconciliationResultFile(id, filename);
+    } catch (err) {
+      console.error('Download result failed:', err);
+    } finally {
+      setDownloadingResultId(null);
+    }
+  }
 
   async function loadData() {
     setLoading(true);
@@ -137,6 +218,9 @@ export default function ReconciliationPage() {
       const res = await reconcileTpBankFile(file);
       setSyncMessage(res.message);
       await loadData();
+      if (activeTab === 'history') {
+        await loadHistory();
+      }
     } catch (err: any) {
       setSyncMessage(`Đối soát TP Bank thất bại: ${err.message || 'Đã có lỗi xảy ra'}`);
     } finally {
@@ -177,7 +261,8 @@ export default function ReconciliationPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        {activeTab === 'list' && (
+          <div className="flex flex-wrap items-center gap-3">
           <input
             type="file"
             ref={tpbankFileInputRef}
@@ -307,7 +392,123 @@ export default function ReconciliationPage() {
             Làm mới
           </button>
         </div>
+        )}
+
+        {activeTab === 'history' && (
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={reconcilingTpBank}
+              onClick={() => tpbankFileInputRef.current?.click()}
+              className="btn-primary px-4 py-2 text-xs flex items-center gap-2"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                className={`h-4 w-4 ${reconcilingTpBank ? 'animate-spin' : ''}`}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+                />
+              </svg>
+              {reconcilingTpBank ? 'Đang đối soát...' : 'Đối soát'}
+            </button>
+
+            <button
+              type="button"
+              onClick={loadHistory}
+              disabled={historyLoading}
+              className="btn-secondary px-4 py-2 text-xs flex items-center gap-2"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                className={`h-4 w-4 ${historyLoading ? 'animate-spin' : ''}`}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+                />
+              </svg>
+              Làm mới
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Tab Navigation */}
+      <div className="mt-4 border-b border-border-subtle/60">
+        <nav className="flex gap-6">
+          <button
+            type="button"
+            onClick={() => setActiveTab('list')}
+            className={`-mb-px border-b-2 px-1 pb-3 text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer ${
+              activeTab === 'list'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.75}
+              stroke="currentColor"
+              className="h-4 w-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm0 5.25h.007v.008H3.75V12Zm0 5.25h.007v.008H3.75v-.008Z"
+              />
+            </svg>
+            Danh sách
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className={`-mb-px border-b-2 px-1 pb-3 text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer ${
+              activeTab === 'history'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.75}
+              stroke="currentColor"
+              className="h-4 w-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+              />
+            </svg>
+            Lịch sử
+            {historyTotal > 0 && (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 font-medium">
+                {historyTotal}
+              </span>
+            )}
+          </button>
+        </nav>
+      </div>
+
+      {activeTab === 'list' && (
+        <>
 
 
       {/* Sync Status Alert */}
@@ -632,6 +833,234 @@ export default function ReconciliationPage() {
         <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
     </div>
+        </>
+      )}
+
+      {/* Tab: Lịch sử */}
+      {activeTab === 'history' && (
+        <div className="mt-4 overflow-hidden rounded-2xl border border-border-subtle/60 bg-white shadow-card">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-border-subtle/60 text-xs text-left">
+              <thead className="bg-slate-50 text-slate-700 font-semibold uppercase tracking-wider">
+                <tr>
+                  <th className="px-3 py-3 whitespace-nowrap text-center">STT</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Thời gian upload</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Người thực hiện</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Tệp đối soát</th>
+                  <th className="px-3 py-3 whitespace-nowrap text-center border-r border-border-subtle/80">Xử lý dòng</th>
+                  <th colSpan={5} className="px-3 py-2.5 text-center bg-purple-50/80 text-purple-900 border-b border-border-subtle/80">
+                    Kết quả đối soát tổng hợp
+                  </th>
+                </tr>
+                <tr className="border-t border-border-subtle/80 bg-page/80 text-[11px] text-slate-600">
+                  <th className="px-3 py-2"></th>
+                  <th className="px-3 py-2"></th>
+                  <th className="px-3 py-2"></th>
+                  <th className="px-3 py-2"></th>
+                  <th className="px-3 py-2 border-r border-border-subtle/80"></th>
+                  <th className="px-2.5 py-2 text-center whitespace-nowrap text-emerald-700" title="Số lượng CTV khớp cả 3 điều kiện (SL HĐ, BBTL, CCCD)">Hợp lệ</th>
+                  <th className="px-2.5 py-2 text-center whitespace-nowrap text-amber-700" title="Số lượng CTV có SL HĐ lệch với bank (Cảnh báo)">Lệch Bank</th>
+                  <th className="px-2.5 py-2 text-center whitespace-nowrap text-rose-700" title="Số lượng CTV lệch SL HĐ">Lệch SL HĐ</th>
+                  <th className="px-2.5 py-2 text-center whitespace-nowrap text-rose-700" title="Số lượng CTV lệch CCCD">Lệch CCCD</th>
+                  <th className="px-2.5 py-2 text-center whitespace-nowrap text-rose-700" title="Số lượng CTV lệch Biên bản thanh lý">Lệch BBTL</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-border-subtle/60 bg-white">
+                {historyLoading ? (
+                  <tr>
+                    <td colSpan={10} className="p-8 text-center text-slate-500">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        <span>Đang tải lịch sử đối soát...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : historyRecords.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="p-12 text-center text-slate-500">
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                      </div>
+                      <p className="mt-3 text-sm font-semibold text-slate-700">Chưa có lịch sử đối soát</p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Các phiên chạy file Đối soát TP Bank sẽ được lưu lại tự động tại đây.
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  historyRecords.map((item, idx) => {
+                    const stt = (historyPage - 1) * historyPageSize + idx + 1;
+                    const stats = item.stats || {
+                      totalSuccess: 0,
+                      totalWarnBank: 0,
+                      totalMismatchContract: 0,
+                      totalMismatchIdCard: 0,
+                      totalMismatchLiquidation: 0,
+                    };
+
+                    return (
+                      <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-3 py-3 text-center font-mono text-slate-500 whitespace-nowrap">
+                          {stt}
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap font-mono text-slate-700">
+                          <div className="font-semibold text-slate-900">{formatDateTime(item.createdAt)}</div>
+                          <div className="text-[10px] text-slate-400 font-sans">{formatRelativeTime(item.createdAt)}</div>
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <div className="font-medium text-slate-900">{item.uploadedBy || '—'}</div>
+                          <div className="text-[11px] font-mono text-slate-400">@{item.username}</div>
+                        </td>
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          <div className="flex flex-col gap-1.5">
+                            {/* File gốc */}
+                            <div className="flex items-center gap-1.5">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                                Gốc
+                              </span>
+                              <span className="font-medium text-slate-800 max-w-[170px] truncate" title={item.filename}>
+                                {item.filename}
+                              </span>
+                              {item.fileSize ? (
+                                <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                  ({formatFileSize(item.fileSize)})
+                                </span>
+                              ) : null}
+                              {item.s3Key && (
+                                <button
+                                  type="button"
+                                  disabled={downloadingHistoryId === item.id}
+                                  onClick={() => handleDownloadHistory(item.id, item.filename)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline cursor-pointer disabled:opacity-50 ml-1 shrink-0"
+                                  title="Tải file đối soát gốc"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-3.5 w-3.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                  </svg>
+                                  {downloadingHistoryId === item.id ? '...' : 'Tải'}
+                                </button>
+                              )}
+                            </div>
+
+                            {/* File kết quả */}
+                            {item.resultFile ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                                  Kết quả
+                                </span>
+                                <span className="font-medium text-slate-800 max-w-[170px] truncate" title={item.resultFile.filename}>
+                                  {item.resultFile.filename}
+                                </span>
+                                {item.resultFile.fileSize ? (
+                                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                    ({formatFileSize(item.resultFile.fileSize)})
+                                  </span>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  disabled={downloadingResultId === item.id}
+                                  onClick={() => handleDownloadResult(item.id, item.resultFile?.filename || 'ket_qua_doi_soat.xlsx')}
+                                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline cursor-pointer disabled:opacity-50 ml-1 shrink-0"
+                                  title="Tải file kết quả đối soát"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-3.5 w-3.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                                  </svg>
+                                  {downloadingResultId === item.id ? '...' : 'Tải'}
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 italic">
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-50 text-slate-400 border border-slate-100 shrink-0">
+                                  Kết quả
+                                </span>
+                                <span>Chưa có file</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-center whitespace-nowrap border-r border-border-subtle/80">
+                          <div className="inline-flex flex-col items-center">
+                            <span className="font-mono font-bold text-slate-800">
+                              {item.successRows} / {item.totalRows}
+                            </span>
+                            {item.failedRows > 0 ? (
+                              <span className="text-[10px] text-rose-500 font-medium">
+                                Lỗi: {item.failedRows} dòng
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-emerald-600 font-medium">
+                                100% hợp lệ
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Thống kê kết quả đối soát */}
+                        <td className="px-2.5 py-3 text-center whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[11px] font-bold">
+                            ✓ {stats.totalSuccess}
+                          </span>
+                        </td>
+                        <td className="px-2.5 py-3 text-center whitespace-nowrap">
+                          {stats.totalWarnBank > 0 ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 border border-amber-300 px-2 py-0.5 text-[11px] font-bold">
+                              ⚠ {stats.totalWarnBank}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-mono">0</span>
+                          )}
+                        </td>
+                        <td className="px-2.5 py-3 text-center whitespace-nowrap">
+                          {stats.totalMismatchContract > 0 ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 text-[11px] font-bold">
+                              ✕ {stats.totalMismatchContract}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-mono">0</span>
+                          )}
+                        </td>
+                        <td className="px-2.5 py-3 text-center whitespace-nowrap">
+                          {stats.totalMismatchIdCard > 0 ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 text-[11px] font-bold">
+                              ✕ {stats.totalMismatchIdCard}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-mono">0</span>
+                          )}
+                        </td>
+                        <td className="px-2.5 py-3 text-center whitespace-nowrap">
+                          {stats.totalMismatchLiquidation > 0 ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 text-[11px] font-bold">
+                              ✕ {stats.totalMismatchLiquidation}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-mono">0</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer & Pagination cho tab Lịch sử */}
+          {historyTotal > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle/60 p-4">
+              <p className="text-xs text-slate-500">
+                Hiển thị <span className="font-semibold text-slate-800">{historyRecords.length}</span> /{' '}
+                <span className="font-semibold text-slate-800">{historyTotal}</span> phiên đối soát
+              </p>
+              <Pagination page={historyPage} totalPages={historyTotalPages} onPageChange={setHistoryPage} />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modal: View Details of TP Bank Contracts */ }
   {

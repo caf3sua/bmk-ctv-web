@@ -2,11 +2,12 @@ import type {
   ImportHrBmkResult,
   ImportHrTpBankResult,
   ListReconciliationParams,
+  ReconciliationHistoryListResponse,
   ReconciliationListResponse,
   ReconciliationRecord,
   SyncSystemInfoResult,
 } from '../../types/reconciliation';
-import { apiFetch } from './client';
+import { apiFetch, downloadFile } from './client';
 
 export async function listReconciliations(
   params?: ListReconciliationParams
@@ -72,5 +73,25 @@ export async function importHrTpBankFile(file: File): Promise<ImportHrTpBankResu
     body: formData,
   });
 }
+
+export async function listReconciliationHistory(
+  page: number = 1,
+  pageSize: number = 20
+): Promise<ReconciliationHistoryListResponse> {
+  const query = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  return apiFetch<ReconciliationHistoryListResponse>(`/reconciliation/history?${query.toString()}`);
+}
+
+export async function downloadReconciliationHistoryFile(id: string, filename: string): Promise<void> {
+  return downloadFile(`/reconciliation/history/${id}/download`, filename);
+}
+
+export async function downloadReconciliationResultFile(id: string, filename: string): Promise<void> {
+  return downloadFile(`/reconciliation/history/${id}/download-result`, filename);
+}
+
 
 

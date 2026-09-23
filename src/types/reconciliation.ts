@@ -102,3 +102,45 @@ export interface ImportHrTpBankResult {
   updatedCount: number;
 }
 
+export interface ReconciliationHistoryStats {
+  totalSuccess: number;
+  totalWarnBank: number;
+  totalMismatchContract: number;
+  totalMismatchIdCard: number;
+  totalMismatchLiquidation: number;
+}
+
+export interface ReconciliationResultFileInfo {
+  filename: string;
+  s3Key: string;
+  s3Bucket: string;
+  fileSize?: number;
+}
+
+export interface ReconciliationHistoryItem {
+  id: string;
+  filename: string;
+  s3Key: string;
+  s3Bucket: string;
+  fileSize?: number;
+  uploadedBy: string;
+  username: string;
+  totalRows: number;
+  successRows: number;
+  failedRows: number;
+  status: string;
+  message: string;
+  stats: ReconciliationHistoryStats;
+  resultFile?: ReconciliationResultFileInfo | null;
+  createdAt: string;
+}
+
+export interface ReconciliationHistoryListResponse {
+  items: ReconciliationHistoryItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+
