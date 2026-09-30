@@ -36,6 +36,7 @@ export interface Collaborator {
   email: string;
   phone: string;
   address: string;
+  noted?: string;
   checklist: Checklist;
   createdAt: string;
   updatedAt: string;
@@ -71,5 +72,6 @@ export const emptyCollaborator = (): CollaboratorInput => ({
   email: '',
   phone: '',
   address: '',
+  noted: '',
   checklist: emptyChecklist(),
 });

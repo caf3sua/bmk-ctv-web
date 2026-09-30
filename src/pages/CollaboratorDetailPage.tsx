@@ -53,7 +53,7 @@ export default function CollaboratorDetailPage() {
     setLoading(true);
     getCollaborator(employeeCode)
       .then((c) => {
-        setForm(c);
+        setForm({ ...emptyCollaborator(), ...c, noted: c.noted || '' });
         setCreatedAt(c.createdAt);
         setUpdatedAt(c.updatedAt);
       })
@@ -462,6 +462,17 @@ export default function CollaboratorDetailPage() {
                       className="input"
                     />
                   </Field>
+                  <div className="sm:col-span-2">
+                    <Field label="Ghi chú / Lưu ý">
+                      <textarea
+                        rows={3}
+                        value={form.noted || ''}
+                        onChange={(e) => updateField('noted', e.target.value)}
+                        placeholder="Nhập các thông tin lưu ý về cộng tác viên..."
+                        className="input resize-y py-2 text-sm leading-relaxed"
+                      />
+                    </Field>
+                  </div>
                 </div>
               </section>
             </div>
