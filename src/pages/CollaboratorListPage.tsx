@@ -303,7 +303,7 @@ export default function CollaboratorListPage() {
                 Ngày sinh
               </th>
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Người bàn giao
+                Bàn giao
               </th>
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Hồ sơ
@@ -346,7 +346,18 @@ export default function CollaboratorListPage() {
                     <p className="text-xs text-slate-400 font-mono">{c.email || '—'}</p>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-600">{formatDate(c.dob)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-700">{c.handoverPerson || '—'}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    {c.handoverPerson || c.handoverDate ? (
+                      <>
+                        <p className="text-slate-700 font-medium">{c.handoverPerson || '—'}</p>
+                        {c.handoverDate && (
+                          <p className="text-xs text-slate-400 font-mono">{formatDate(c.handoverDate)}</p>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <ProfileStatusBadge checklist={c.checklist} />
                   </td>
