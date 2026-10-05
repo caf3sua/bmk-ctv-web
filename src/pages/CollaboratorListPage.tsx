@@ -122,7 +122,7 @@ export default function CollaboratorListPage() {
         c.fullName.toLowerCase().includes(term) ||
         c.taxCode.toLowerCase().includes(term) ||
         c.email.toLowerCase().includes(term) ||
-        Boolean(c.handoverPerson && c.handoverPerson.toLowerCase().includes(term)) ||
+        Boolean(c.handoverInfo && c.handoverInfo.some((h) => h.handoverPerson?.toLowerCase().includes(term))) ||
         Boolean(c.noted && c.noted.toLowerCase().includes(term));
 
       const complete = isChecklistComplete(c.checklist);
@@ -348,13 +348,29 @@ export default function CollaboratorListPage() {
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-600">{formatDate(c.dob)}</td>
                   <td className="whitespace-nowrap px-4 py-3">
-                    {c.handoverPerson || c.handoverDate ? (
-                      <>
-                        <p className="text-slate-700 font-medium">{c.handoverPerson || '—'}</p>
-                        {c.handoverDate && (
-                          <p className="text-xs text-slate-400 font-mono">{formatDate(c.handoverDate)}</p>
-                        )}
-                      </>
+                    {c.handoverInfo && c.handoverInfo.length > 0 ? (
+                      (() => {
+                        const sorted = [...c.handoverInfo].sort((a, b) => (a.handoverDate || '').localeCompare(b.handoverDate || ''));
+                        const latest = sorted[sorted.length - 1];
+                        return (
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-slate-700 font-medium">{latest.handoverPerson || '—'}</p>
+                              {sorted.length > 1 && (
+                                <span
+                                  className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 border border-slate-200 cursor-help"
+                                  title={sorted.map((h) => `${h.handoverPerson || '—'} (${formatDate(h.handoverDate)})`).join('\n')}
+                                >
+                                  +{sorted.length - 1}
+                                </span>
+                              )}
+                            </div>
+                            {latest.handoverDate && (
+                              <p className="text-xs text-slate-400 font-mono">{formatDate(latest.handoverDate)}</p>
+                            )}
+                          </div>
+                        );
+                      })()
                     ) : (
                       <span className="text-slate-400">—</span>
                     )}

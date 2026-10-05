@@ -27,6 +27,12 @@ export interface Checklist {
   };
 }
 
+export interface HandoverInfoItem {
+  handoverDate: string;
+  handoverPerson: string;
+  createdAt?: string | null;
+}
+
 export interface Collaborator {
   employeeCode: string;
   fullName: string;
@@ -37,8 +43,7 @@ export interface Collaborator {
   phone: string;
   address: string;
   noted?: string;
-  handoverPerson?: string;
-  handoverDate?: string | null;
+  handoverInfo?: HandoverInfoItem[];
   checklist: Checklist;
   createdAt: string;
   updatedAt: string;
@@ -75,7 +80,6 @@ export const emptyCollaborator = (): CollaboratorInput => ({
   phone: '',
   address: '',
   noted: '',
-  handoverPerson: '',
-  handoverDate: null,
+  handoverInfo: [],
   checklist: emptyChecklist(),
 });

@@ -14,7 +14,7 @@ import {
   downloadCollaboratorDocument,
   deleteCollaboratorDocument,
 } from '../services/api/collaborators';
-import { emptyCollaborator, type CollaboratorInput, type ServiceContractPeriod } from '../types/collaborator';
+import { emptyCollaborator, type CollaboratorInput, type HandoverInfoItem, type ServiceContractPeriod } from '../types/collaborator';
 import { getChecklistProgress, parseUploadedFileMeta } from '../utils/checklist';
 import { formatDate, formatDateTime } from '../utils/date';
 
@@ -57,8 +57,7 @@ export default function CollaboratorDetailPage() {
           ...emptyCollaborator(),
           ...c,
           noted: c.noted || '',
-          handoverPerson: c.handoverPerson || '',
-          handoverDate: c.handoverDate || null,
+          handoverInfo: c.handoverInfo || [],
         });
         setCreatedAt(c.createdAt);
         setUpdatedAt(c.updatedAt);
@@ -72,6 +71,32 @@ export default function CollaboratorDetailPage() {
 
   function updateField<K extends keyof CollaboratorInput>(key: K, value: CollaboratorInput[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function addHandoverInfo() {
+    const today = new Date().toISOString().split('T')[0];
+    setForm((prev) => ({
+      ...prev,
+      handoverInfo: [
+        ...(prev.handoverInfo || []),
+        { handoverDate: today, handoverPerson: '', createdAt: new Date().toISOString() },
+      ],
+    }));
+  }
+
+  function updateHandoverInfo(index: number, patch: Partial<HandoverInfoItem>) {
+    setForm((prev) => {
+      const list = [...(prev.handoverInfo || [])];
+      list[index] = { ...list[index], ...patch };
+      return { ...prev, handoverInfo: list };
+    });
+  }
+
+  function removeHandoverInfo(index: number) {
+    setForm((prev) => ({
+      ...prev,
+      handoverInfo: (prev.handoverInfo || []).filter((_, i) => i !== index),
+    }));
   }
 
 
@@ -468,23 +493,69 @@ export default function CollaboratorDetailPage() {
                       className="input"
                     />
                   </Field>
-                  <Field label="Người bàn giao">
-                    <input
-                      type="text"
-                      value={form.handoverPerson || ''}
-                      onChange={(e) => updateField('handoverPerson', e.target.value)}
-                      placeholder="Nhập họ tên người bàn giao..."
-                      className="input"
-                    />
-                  </Field>
-                  <Field label="Ngày bàn giao">
-                    <input
-                      type="date"
-                      value={form.handoverDate ?? ''}
-                      onChange={(e) => updateField('handoverDate', e.target.value || null)}
-                      className="input"
-                    />
-                  </Field>
+                  <div className="sm:col-span-2 rounded-xl border border-border-subtle/80 bg-slate-50/50 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-800">Thông tin bàn giao công việc</h3>
+                        <p className="text-xs text-slate-500">Danh sách các lần bàn giao. Ngày bàn giao là khoá duy nhất (nếu trùng ngày sẽ cập nhật người bàn giao).</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={addHandoverInfo}
+                        className="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-primary border border-slate-200 hover:bg-slate-50 shadow-sm cursor-pointer transition-all active:scale-95"
+                      >
+                        + Thêm đợt bàn giao
+                      </button>
+                    </div>
+
+                    {(form.handoverInfo || []).length === 0 ? (
+                      <p className="text-xs text-slate-400 italic py-2 text-center">Chưa có thông tin bàn giao nào.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {(form.handoverInfo || []).map((item, idx) => (
+                          <div key={idx} className="flex flex-wrap items-center gap-3 bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                            <div className="flex-1 min-w-[150px]">
+                              <label className="block text-[11px] font-semibold text-slate-500 uppercase mb-1">Ngày bàn giao</label>
+                              <input
+                                type="date"
+                                required
+                                value={item.handoverDate || ''}
+                                onChange={(e) => updateHandoverInfo(idx, { handoverDate: e.target.value })}
+                                className="input text-xs py-1.5 font-mono"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-[180px]">
+                              <label className="block text-[11px] font-semibold text-slate-500 uppercase mb-1">Người bàn giao</label>
+                              <input
+                                type="text"
+                                value={item.handoverPerson || ''}
+                                onChange={(e) => updateHandoverInfo(idx, { handoverPerson: e.target.value })}
+                                placeholder="Nhập người bàn giao..."
+                                className="input text-xs py-1.5"
+                              />
+                            </div>
+                            {item.createdAt && (
+                              <div className="min-w-[110px]">
+                                <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">Thời gian tạo</label>
+                                <span className="text-xs text-slate-500 font-mono block pt-1.5" title={formatDateTime(item.createdAt)}>
+                                  {formatDate(item.createdAt)}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex items-end pt-5">
+                              <button
+                                type="button"
+                                onClick={() => removeHandoverInfo(idx)}
+                                className="rounded-full border border-danger/30 px-2.5 py-1 text-xs font-semibold text-danger hover:bg-danger/5 active:scale-95 transition-all cursor-pointer"
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="sm:col-span-2">
                     <Field label="Ghi chú / Lưu ý">
                       <textarea
