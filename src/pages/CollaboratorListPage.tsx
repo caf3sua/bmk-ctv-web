@@ -122,7 +122,8 @@ export default function CollaboratorListPage() {
         c.fullName.toLowerCase().includes(term) ||
         c.taxCode.toLowerCase().includes(term) ||
         c.email.toLowerCase().includes(term) ||
-        Boolean(c.handoverPerson && c.handoverPerson.toLowerCase().includes(term));
+        Boolean(c.handoverPerson && c.handoverPerson.toLowerCase().includes(term)) ||
+        Boolean(c.noted && c.noted.toLowerCase().includes(term));
 
       const complete = isChecklistComplete(c.checklist);
       const matchesStatus =
@@ -254,7 +255,7 @@ export default function CollaboratorListPage() {
             type="text"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="Tìm theo mã NV, họ tên, MST, email, người bàn giao..."
+            placeholder="Tìm theo mã NV, họ tên, MST, email, ghi chú..."
             className="input"
           />
         </div>
