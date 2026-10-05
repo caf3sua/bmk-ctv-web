@@ -121,7 +121,8 @@ export default function CollaboratorListPage() {
         c.employeeCode.toLowerCase().includes(term) ||
         c.fullName.toLowerCase().includes(term) ||
         c.taxCode.toLowerCase().includes(term) ||
-        c.email.toLowerCase().includes(term);
+        c.email.toLowerCase().includes(term) ||
+        Boolean(c.handoverPerson && c.handoverPerson.toLowerCase().includes(term));
 
       const complete = isChecklistComplete(c.checklist);
       const matchesStatus =
@@ -253,7 +254,7 @@ export default function CollaboratorListPage() {
             type="text"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="Tìm theo mã NV, họ tên, MST, email..."
+            placeholder="Tìm theo mã NV, họ tên, MST, email, người bàn giao..."
             className="input"
           />
         </div>
@@ -302,6 +303,9 @@ export default function CollaboratorListPage() {
                 Ngày sinh
               </th>
               <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Người bàn giao
+              </th>
+              <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Hồ sơ
               </th>
               <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -312,14 +316,14 @@ export default function CollaboratorListPage() {
           <tbody className="divide-y divide-border-subtle/60">
             {loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-500 font-medium">
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-500 font-medium">
                   Đang tải dữ liệu...
                 </td>
               </tr>
             )}
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-500 font-medium">
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-500 font-medium">
                   Không tìm thấy cộng tác viên nào.
                 </td>
               </tr>
@@ -342,6 +346,7 @@ export default function CollaboratorListPage() {
                     <p className="text-xs text-slate-400 font-mono">{c.email || '—'}</p>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-600">{formatDate(c.dob)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-700">{c.handoverPerson || '—'}</td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <ProfileStatusBadge checklist={c.checklist} />
                   </td>

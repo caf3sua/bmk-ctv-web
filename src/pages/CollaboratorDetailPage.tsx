@@ -53,7 +53,7 @@ export default function CollaboratorDetailPage() {
     setLoading(true);
     getCollaborator(employeeCode)
       .then((c) => {
-        setForm({ ...emptyCollaborator(), ...c, noted: c.noted || '' });
+        setForm({ ...emptyCollaborator(), ...c, noted: c.noted || '', handoverPerson: c.handoverPerson || '' });
         setCreatedAt(c.createdAt);
         setUpdatedAt(c.updatedAt);
       })
@@ -459,6 +459,15 @@ export default function CollaboratorDetailPage() {
                       type="text"
                       value={form.address}
                       onChange={(e) => updateField('address', e.target.value)}
+                      className="input"
+                    />
+                  </Field>
+                  <Field label="Người bàn giao">
+                    <input
+                      type="text"
+                      value={form.handoverPerson || ''}
+                      onChange={(e) => updateField('handoverPerson', e.target.value)}
+                      placeholder="Nhập họ tên người bàn giao..."
                       className="input"
                     />
                   </Field>

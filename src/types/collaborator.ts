@@ -37,6 +37,7 @@ export interface Collaborator {
   phone: string;
   address: string;
   noted?: string;
+  handoverPerson?: string;
   checklist: Checklist;
   createdAt: string;
   updatedAt: string;
@@ -73,5 +74,6 @@ export const emptyCollaborator = (): CollaboratorInput => ({
   phone: '',
   address: '',
   noted: '',
+  handoverPerson: '',
   checklist: emptyChecklist(),
 });
