@@ -12,6 +12,7 @@ import SystemLogsPage from './pages/SystemLogsPage';
 import UploadHistoryPage from './pages/UploadHistoryPage';
 import UploadDocumentsPage from './pages/UploadDocumentsPage';
 import ReconciliationPage from './pages/ReconciliationPage';
+import ExpiringContractsPage from './pages/ExpiringContractsPage';
 
 export default function App() {
   return (
@@ -48,6 +49,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ReconciliationPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/expiring-contracts"
+            element={
+              <ProtectedRoute>
+                <ExpiringContractsPage />
               </ProtectedRoute>
             }
           />

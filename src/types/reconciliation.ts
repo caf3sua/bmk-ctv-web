@@ -51,6 +51,7 @@ export interface ReconciliationRecord {
   employmentStatus?: string | null;
   onboardDate?: string | null;
   offboardDate?: string | null;
+  contractExpiryDate?: string | null;
   tpbankInfo: TpBankInfo;
   bmkHrInfo: BmkHrInfo;
   bmkSystemInfo: BmkSystemInfo;
@@ -141,6 +142,36 @@ export interface ReconciliationHistoryListResponse {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+export interface ExpiringMovementItem {
+  date: string;
+  label: string;
+  count: number;
+}
+
+export interface ExpiringBarChartData {
+  days: number;
+  totalExpiring: number;
+  items: ExpiringMovementItem[];
+}
+
+export interface ExpiringPieChartData {
+  active: number;
+  resigned: number;
+  total: number;
+}
+
+export interface ExpiringContractsStatsResponse {
+  pieChart: ExpiringPieChartData;
+  barChart: ExpiringBarChartData;
+}
+
+export interface ListExpiringContractsParams {
+  keyword?: string;
+  days?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 

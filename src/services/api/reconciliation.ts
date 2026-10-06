@@ -1,6 +1,8 @@
 import type {
+  ExpiringContractsStatsResponse,
   ImportHrBmkResult,
   ImportHrTpBankResult,
+  ListExpiringContractsParams,
   ListReconciliationParams,
   ReconciliationHistoryListResponse,
   ReconciliationListResponse,
@@ -91,6 +93,23 @@ export async function downloadReconciliationHistoryFile(id: string, filename: st
 
 export async function downloadReconciliationResultFile(id: string, filename: string): Promise<void> {
   return downloadFile(`/reconciliation/history/${id}/download-result`, filename);
+}
+
+export async function getExpiringContractsStats(days: number = 30): Promise<ExpiringContractsStatsResponse> {
+  return apiFetch<ExpiringContractsStatsResponse>(`/reconciliation/expiring-contracts/stats?days=${days}`);
+}
+
+export async function listExpiringContracts(
+  params?: ListExpiringContractsParams
+): Promise<ReconciliationListResponse> {
+  const query = new URLSearchParams();
+  if (params?.keyword) query.set('keyword', params.keyword);
+  if (params?.days) query.set('days', String(params.days));
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.pageSize) query.set('page_size', String(params.pageSize));
+
+  const qs = query.toString();
+  return apiFetch<ReconciliationListResponse>(`/reconciliation/expiring-contracts${qs ? `?${qs}` : ''}`);
 }
 
 
