@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
 import ExpiringContractsBarChart from '../components/charts/ExpiringContractsBarChart';
 import EmploymentStatusPieChart from '../components/charts/EmploymentStatusPieChart';
 import {
+  downloadExpiringContractsTemplate,
   getExpiringContractsStats,
+  importExpiringContractsFile,
   listExpiringContracts,
 } from '../services/api/reconciliation';
 import type {
@@ -64,6 +66,12 @@ function getNotificationInfo(expiryDateStr?: string | null): {
 }
 
 export default function ExpiringContractsPage() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState<boolean>(false);
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState<boolean>(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncMessageType, setSyncMessageType] = useState<'success' | 'error'>('success');
+
   // Chart state
   const [selectedChartDays, setSelectedChartDays] = useState<number>(30);
   const [stats, setStats] = useState<ExpiringContractsStatsResponse | null>(null);
@@ -125,6 +133,43 @@ export default function ExpiringContractsPage() {
     fetchRecords();
   };
 
+  const handleDownloadTemplate = async () => {
+    if (isDownloadingTemplate) return;
+    setIsDownloadingTemplate(true);
+    try {
+      await downloadExpiringContractsTemplate();
+    } catch (err: any) {
+      console.error('Lỗi tải template:', err);
+      setSyncMessageType('error');
+      setSyncMessage(`Không thể tải file mẫu: ${err.message || 'Đã có lỗi xảy ra'}`);
+    } finally {
+      setIsDownloadingTemplate(false);
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsImporting(true);
+    setSyncMessage(null);
+    try {
+      const res = await importExpiringContractsFile(file);
+      setSyncMessageType('success');
+      setSyncMessage(res.message);
+      // Cập nhật lại biểu đồ và danh sách dữ liệu
+      handleRefresh();
+    } catch (err: any) {
+      console.error('Lỗi khi import ngày đáo hạn:', err);
+      setSyncMessageType('error');
+      setSyncMessage(`Import dữ liệu thất bại: ${err.message || 'Đã có lỗi xảy ra'}`);
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -139,28 +184,141 @@ export default function ExpiringContractsPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="btn-secondary px-4 py-2 text-xs font-semibold flex items-center gap-1.5"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-              className="h-4 w-4"
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Hidden file input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImportFile}
+              accept=".xlsx,.xlsm"
+              className="hidden"
+            />
+
+            {/* Button 1: Download Template */}
+            <button
+              type="button"
+              onClick={handleDownloadTemplate}
+              disabled={isDownloadingTemplate}
+              className="btn-secondary px-4 py-2 text-xs font-semibold flex items-center gap-1.5 border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+              title="Tải template mẫu template_bmk_ngay_dao_han.xlsx"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-              />
-            </svg>
-            Làm mới
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                className={`h-4 w-4 ${isDownloadingTemplate ? 'animate-spin' : ''}`}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
+                />
+              </svg>
+              {isDownloadingTemplate ? 'Đang tải mẫu...' : 'Tải file mẫu'}
+            </button>
+
+            {/* Button 2: Import data ngày đáo hạn */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-1.5 border-primary bg-primary hover:bg-primary-dark text-white shadow-sm cursor-pointer disabled:opacity-50"
+              title="Upload file data ngày đáo hạn"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                className={`h-4 w-4 ${isImporting ? 'animate-spin' : ''}`}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+                />
+              </svg>
+              {isImporting ? 'Đang import...' : 'Import data ngày đáo hạn'}
+            </button>
+
+            {/* Button 3: Refresh */}
+            <button
+              type="button"
+              onClick={handleRefresh}
+              className="btn-secondary px-4 py-2 text-xs font-semibold flex items-center gap-1.5"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                className="h-4 w-4"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+                />
+              </svg>
+              Làm mới
+            </button>
+          </div>
         </div>
+
+        {/* Sync / Import Status Alert */}
+        {syncMessage && (
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm flex items-center justify-between transition-all ${
+              syncMessageType === 'error'
+                ? 'border-rose-200 bg-rose-50 text-rose-700'
+                : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {syncMessageType === 'error' ? (
+                <svg
+                  className="w-5 h-5 text-rose-500 shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-5 h-5 text-emerald-500 shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              )}
+              <span className="font-medium">{syncMessage}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSyncMessage(null)}
+              className="text-xs font-semibold underline hover:no-underline ml-4 cursor-pointer"
+            >
+              Đóng
+            </button>
+          </div>
+        )}
 
         {/* Part 1: Charts Section (Bar Chart ~75% width, Pie Chart ~25% width) */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
@@ -180,6 +338,8 @@ export default function ExpiringContractsPage() {
             <EmploymentStatusPieChart
               activeCount={stats?.pieChart?.active || 0}
               resignedCount={stats?.pieChart?.resigned || 0}
+              activeWithExpiry={stats?.pieChart?.activeWithExpiry || 0}
+              activeWithoutExpiry={stats?.pieChart?.activeWithoutExpiry || 0}
               loading={statsLoading}
             />
           </div>

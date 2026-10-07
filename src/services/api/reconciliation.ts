@@ -1,5 +1,6 @@
 import type {
   ExpiringContractsStatsResponse,
+  ImportExpiringContractsResult,
   ImportHrBmkResult,
   ImportHrTpBankResult,
   ListExpiringContractsParams,
@@ -110,6 +111,19 @@ export async function listExpiringContracts(
 
   const qs = query.toString();
   return apiFetch<ReconciliationListResponse>(`/reconciliation/expiring-contracts${qs ? `?${qs}` : ''}`);
+}
+
+export async function downloadExpiringContractsTemplate(): Promise<void> {
+  return downloadFile('/reconciliation/template-expiring-contracts', 'template_bmk_ngay_dao_han.xlsx');
+}
+
+export async function importExpiringContractsFile(file: File): Promise<ImportExpiringContractsResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiFetch<ImportExpiringContractsResult>('/reconciliation/import-expiring-contracts', {
+    method: 'POST',
+    body: formData,
+  });
 }
 
 

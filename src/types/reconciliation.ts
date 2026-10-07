@@ -160,6 +160,8 @@ export interface ExpiringPieChartData {
   active: number;
   resigned: number;
   total: number;
+  activeWithExpiry?: number;
+  activeWithoutExpiry?: number;
 }
 
 export interface ExpiringContractsStatsResponse {
@@ -172,6 +174,14 @@ export interface ListExpiringContractsParams {
   days?: number;
   page?: number;
   pageSize?: number;
+}
+
+export interface ImportExpiringContractsResult {
+  status: string;
+  message: string;
+  totalProcessed: number;
+  createdCount: number;
+  updatedCount: number;
 }
 
 
