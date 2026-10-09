@@ -9,6 +9,7 @@ import {
   downloadDoiSoatTemplate,
   downloadImportTemplate,
   exportCollaborators,
+  exportContractReport,
   importCollaborators,
   listCollaborators,
 } from '../services/api/collaborators';
@@ -28,6 +29,7 @@ export default function CollaboratorListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
   const [exporting, setExporting] = useState(false);
+  const [exportingContracts, setExportingContracts] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<{
     text: string;
@@ -58,6 +60,21 @@ export default function CollaboratorListPage() {
       });
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handleExportContracts() {
+    setExportingContracts(true);
+    setImportMessage(null);
+    try {
+      await exportContractReport();
+    } catch (err) {
+      setImportMessage({
+        text: err instanceof ApiError ? err.message : 'Xuất báo cáo hợp đồng thất bại',
+        tone: 'error',
+      });
+    } finally {
+      setExportingContracts(false);
     }
   }
 
@@ -181,6 +198,14 @@ export default function CollaboratorListPage() {
             className="btn-secondary px-4 py-2"
           >
             {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+          </button>
+          <button
+            type="button"
+            onClick={handleExportContracts}
+            disabled={exportingContracts}
+            className="btn-secondary px-4 py-2"
+          >
+            {exportingContracts ? 'Đang xuất...' : 'Xuất báo cáo HĐ'}
           </button>
           <button
             type="button"
