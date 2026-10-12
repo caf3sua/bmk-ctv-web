@@ -32,7 +32,12 @@ export default function CollaboratorDetailPage() {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [deletingFile, setDeletingFile] = useState<string | null>(null);
-  const [confirmDeleteFile, setConfirmDeleteFile] = useState<{ fileKey: string; filename: string } | null>(null);
+  const [confirmDeleteFile, setConfirmDeleteFile] = useState<{
+    fileKey: string;
+    filename: string;
+    docType: 'serviceContract' | 'idCard' | 'taxCommitment' | 'liquidation';
+    title: string;
+  } | null>(null);
   const [confirmDeleteProfile, setConfirmDeleteProfile] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -239,47 +244,97 @@ export default function CollaboratorDetailPage() {
 
   const openConfirmDeleteContractFile = (fileKey: string, defaultName?: string) => {
     const { filename } = parseUploadedFileMeta(fileKey, defaultName);
-    setConfirmDeleteFile({ fileKey, filename });
+    setConfirmDeleteFile({
+      fileKey,
+      filename,
+      docType: 'serviceContract',
+      title: 'Xác nhận xóa Hợp đồng dịch vụ',
+    });
   };
 
-  const handleConfirmDeleteContractFile = async () => {
+  const openConfirmDeleteCccdFile = (fileKey: string) => {
+    const { filename } = parseUploadedFileMeta(fileKey, 'File CCCD');
+    setConfirmDeleteFile({
+      fileKey,
+      filename,
+      docType: 'idCard',
+      title: 'Xác nhận xóa CCCD',
+    });
+  };
+
+  const openConfirmDeleteBbtlFile = (fileKey: string) => {
+    const { filename } = parseUploadedFileMeta(fileKey, 'File biên bản thanh lý');
+    setConfirmDeleteFile({
+      fileKey,
+      filename,
+      docType: 'liquidation',
+      title: 'Xác nhận xóa Biên bản thanh lý',
+    });
+  };
+
+  const handleConfirmDeleteFile = async () => {
     if (!confirmDeleteFile) return;
-    const { fileKey } = confirmDeleteFile;
+    const { fileKey, docType } = confirmDeleteFile;
+
+    const removeFileFromState = () => {
+      setForm((prev) => {
+        if (docType === 'serviceContract') {
+          const hddv = prev.checklist.hddv || { contract_date: [], files: [] };
+          return {
+            ...prev,
+            checklist: {
+              ...prev.checklist,
+              hddv: {
+                ...hddv,
+                files: (hddv.files || []).filter((f) => (typeof f === 'string' ? f : f.name) !== fileKey),
+              },
+            },
+          };
+        }
+        if (docType === 'idCard') {
+          const cccd = prev.checklist.cccd || { checked: false, file: null };
+          return {
+            ...prev,
+            checklist: {
+              ...prev.checklist,
+              cccd: { ...cccd, file: null },
+            },
+          };
+        }
+        if (docType === 'taxCommitment') {
+          const ckt = prev.checklist.ckt || { checked: false, file: null };
+          return {
+            ...prev,
+            checklist: {
+              ...prev.checklist,
+              ckt: { ...ckt, file: null },
+            },
+          };
+        }
+        if (docType === 'liquidation') {
+          const bbtl = prev.checklist.bbtl || { date: null, file: null };
+          return {
+            ...prev,
+            checklist: {
+              ...prev.checklist,
+              bbtl: { ...bbtl, file: null },
+            },
+          };
+        }
+        return prev;
+      });
+    };
 
     if (!employeeCode || isNew) {
-      setForm((prev) => {
-        const hddv = prev.checklist.hddv || { contract_date: [], files: [] };
-        return {
-          ...prev,
-          checklist: {
-            ...prev.checklist,
-            hddv: {
-              ...hddv,
-              files: (hddv.files || []).filter((f) => (typeof f === 'string' ? f : f.name) !== fileKey),
-            },
-          },
-        };
-      });
+      removeFileFromState();
       setConfirmDeleteFile(null);
       return;
     }
 
     setDeletingFile(fileKey);
     try {
-      await deleteCollaboratorDocument(employeeCode, 'serviceContract', fileKey);
-      setForm((prev) => {
-        const hddv = prev.checklist.hddv || { contract_date: [], files: [] };
-        return {
-          ...prev,
-          checklist: {
-            ...prev.checklist,
-            hddv: {
-              ...hddv,
-              files: (hddv.files || []).filter((f) => (typeof f === 'string' ? f : f.name) !== fileKey),
-            },
-          },
-        };
-      });
+      await deleteCollaboratorDocument(employeeCode, docType, fileKey);
+      removeFileFromState();
       setConfirmDeleteFile(null);
     } catch (err) {
       alert('Không thể xóa tệp tin: ' + (err instanceof Error ? err.message : 'Đã có lỗi xảy ra'));
@@ -606,13 +661,24 @@ export default function CollaboratorDetailPage() {
                               )}
                               <button
                                 type="button"
-                                onClick={() => downloadDocument('idCard', form.checklist.cccd.file!.name)}
+                                onClick={() => downloadDocument('idCard', form.checklist.cccd!.file!.name)}
                                 className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                                 </svg>
                                 Tải file
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openConfirmDeleteCccdFile(form.checklist.cccd!.file!.name)}
+                                disabled={deletingFile === form.checklist.cccd!.file!.name}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-danger hover:underline cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                </svg>
+                                {deletingFile === form.checklist.cccd!.file!.name ? 'Đang xóa...' : 'Xóa'}
                               </button>
                             </div>
                           )}
@@ -781,13 +847,24 @@ export default function CollaboratorDetailPage() {
                               )}
                               <button
                                 type="button"
-                                onClick={() => downloadDocument('liquidation', form.checklist.bbtl.file!.name)}
+                                onClick={() => downloadDocument('liquidation', form.checklist.bbtl!.file!.name)}
                                 className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                                 </svg>
                                 Tải file biên bản
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openConfirmDeleteBbtlFile(form.checklist.bbtl!.file!.name)}
+                                disabled={deletingFile === form.checklist.bbtl!.file!.name}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-danger hover:underline cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                </svg>
+                                {deletingFile === form.checklist.bbtl!.file!.name ? 'Đang xóa...' : 'Xóa'}
                               </button>
                             </div>
                           )}
@@ -826,7 +903,7 @@ export default function CollaboratorDetailPage() {
 
       <ConfirmModal
         isOpen={Boolean(confirmDeleteFile)}
-        title="Xác nhận xóa Hợp đồng dịch vụ"
+        title={confirmDeleteFile?.title || 'Xác nhận xóa tệp tin'}
         message={
           <span>
             Bạn có chắc chắn muốn xóa file{' '}
@@ -841,7 +918,7 @@ export default function CollaboratorDetailPage() {
         cancelLabel="Hủy bỏ"
         variant="danger"
         loading={Boolean(deletingFile)}
-        onConfirm={handleConfirmDeleteContractFile}
+        onConfirm={handleConfirmDeleteFile}
         onCancel={() => {
           if (!deletingFile) setConfirmDeleteFile(null);
         }}
