@@ -76,6 +76,7 @@ export default function ReconciliationPage() {
   const hrTpBankFileInputRef = useRef<HTMLInputElement>(null);
 
   // Filters
+  const [searchInput, setSearchInput] = useState('');
   const [keyword, setKeyword] = useState('');
   const [employmentStatus, setEmploymentStatus] = useState('all');
   const [createdSource, setCreatedSource] = useState('all');
@@ -114,6 +115,17 @@ export default function ReconciliationPage() {
       loadHistory();
     }
   }, [activeTab]);
+
+  function handleSearch() {
+    setKeyword(searchInput.trim());
+    setPage(1);
+  }
+
+  function handleClearSearch() {
+    setSearchInput('');
+    setKeyword('');
+    setPage(1);
+  }
 
   async function loadHistory() {
     setHistoryLoading(true);
@@ -527,18 +539,44 @@ export default function ReconciliationPage() {
 
       {/* Filter Toolbar */}
       <div className="mt-4 flex flex-wrap gap-3 rounded-2xl border border-border-subtle/60 bg-white p-4 shadow-card">
-        <div className="min-w-[240px] flex-1">
-          <input
-            type="text"
-            value={keyword}
-            onChange={(e) => {
-              setKeyword(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Tìm theo mã NV, họ tên, CCCD, đơn vị, chức danh..."
-            className="input text-xs"
-          />
-        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSearch();
+          }}
+          className="flex items-center gap-2 flex-1 min-w-[280px]"
+        >
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Tìm theo mã NV, họ tên, CCCD, đơn vị, chức danh..."
+              className={`input text-xs ${searchInput ? 'pr-8' : ''}`}
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                title="Xóa tìm kiếm"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+          <button
+            type="submit"
+            className="btn-primary px-3.5 py-2 text-xs flex items-center gap-1.5 shrink-0"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <span>Tìm kiếm</span>
+          </button>
+        </form>
 
         <select
           value={employmentStatus}
@@ -685,10 +723,27 @@ export default function ReconciliationPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                       </svg>
                     </div>
-                    <p className="mt-3 text-sm font-semibold text-slate-700">Chưa có dữ liệu đối soát phù hợp</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Nhấn "Đồng bộ hệ thống BMK" để nạp danh sách CTV từ hệ thống hoặc điều chỉnh bộ lọc.
-                    </p>
+                    {keyword ? (
+                      <>
+                        <p className="mt-3 text-sm font-semibold text-slate-700">
+                          Không tìm thấy dữ liệu đối soát phù hợp với từ khóa &ldquo;{keyword}&rdquo;
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleClearSearch}
+                          className="mt-2 text-xs font-semibold text-accent hover:underline cursor-pointer"
+                        >
+                          Xóa bộ lọc tìm kiếm
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="mt-3 text-sm font-semibold text-slate-700">Chưa có dữ liệu đối soát phù hợp</p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          Nhấn &quot;Đồng bộ hệ thống BMK&quot; để nạp danh sách CTV từ hệ thống hoặc điều chỉnh bộ lọc.
+                        </p>
+                      </>
+                    )}
                   </td>
                 </tr>
               ) : (

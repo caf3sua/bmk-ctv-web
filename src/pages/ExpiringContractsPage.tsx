@@ -83,6 +83,7 @@ export default function ExpiringContractsPage() {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+  const [searchInput, setSearchInput] = useState<string>('');
   const [keyword, setKeyword] = useState<string>('');
   const [daysFilter, setDaysFilter] = useState<number | 'all'>('all');
   const [listLoading, setListLoading] = useState<boolean>(true);
@@ -131,6 +132,17 @@ export default function ExpiringContractsPage() {
   const handleRefresh = () => {
     fetchStats(selectedChartDays);
     fetchRecords();
+  };
+
+  const handleSearch = () => {
+    setKeyword(searchInput.trim());
+    setPage(1);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setKeyword('');
+    setPage(1);
   };
 
   const handleDownloadTemplate = async () => {
@@ -350,33 +362,59 @@ export default function ExpiringContractsPage() {
           {/* Table Toolbar */}
           <div className="p-4 border-b border-border-subtle/80 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
             <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[260px]">
-              {/* Search input */}
-              <div className="relative min-w-[240px] max-w-sm flex-1">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  stroke="currentColor"
-                  className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+              {/* Search form */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSearch();
+                }}
+                className="flex items-center gap-2 flex-1 min-w-[260px] max-w-md"
+              >
+                <div className="relative flex-1">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                    className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                    />
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    placeholder="Tìm theo mã NV, họ tên, CCCD, đơn vị..."
+                    className={`input pl-9 text-xs ${searchInput ? 'pr-8' : ''}`}
                   />
-                </svg>
-                <input
-                  type="text"
-                  value={keyword}
-                  onChange={(e) => {
-                    setKeyword(e.target.value);
-                    setPage(1);
-                  }}
-                  placeholder="Tìm theo mã NV, họ tên, CCCD, đơn vị..."
-                  className="input pl-9 text-xs"
-                />
-              </div>
+                  {searchInput && (
+                    <button
+                      type="button"
+                      onClick={handleClearSearch}
+                      title="Xóa tìm kiếm"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  className="btn-primary px-3.5 py-2 text-xs flex items-center gap-1.5 shrink-0"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                  </svg>
+                  <span>Tìm kiếm</span>
+                </button>
+              </form>
 
               {/* Days filter select */}
               <select
@@ -477,10 +515,27 @@ export default function ExpiringContractsPage() {
                           />
                         </svg>
                       </div>
-                      <p className="font-medium text-slate-600">Không tìm thấy cộng tác viên phù hợp</p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        Thử thay đổi từ khóa tìm kiếm hoặc điều chỉnh bộ lọc hạn hợp đồng.
-                      </p>
+                      {keyword ? (
+                        <div>
+                          <p className="font-medium text-slate-600">
+                            Không tìm thấy cộng tác viên phù hợp với từ khóa &ldquo;{keyword}&rdquo;
+                          </p>
+                          <button
+                            type="button"
+                            onClick={handleClearSearch}
+                            className="mt-2 text-xs font-semibold text-accent hover:underline cursor-pointer"
+                          >
+                            Xóa bộ lọc tìm kiếm
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="font-medium text-slate-600">Không tìm thấy cộng tác viên phù hợp</p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Thử thay đổi từ khóa tìm kiếm hoặc điều chỉnh bộ lọc hạn hợp đồng.
+                          </p>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ) : (

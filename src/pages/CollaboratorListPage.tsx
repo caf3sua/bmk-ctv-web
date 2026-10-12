@@ -24,7 +24,8 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50];
 export default function CollaboratorListPage() {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [loading, setLoading] = useState(true);
-  const [keyword, setKeyword] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
@@ -151,10 +152,19 @@ export default function CollaboratorListPage() {
     }
   }
 
+  function handleSearch() {
+    setSearchKeyword(searchInput.trim());
+  }
+
+  function handleClearSearch() {
+    setSearchInput('');
+    setSearchKeyword('');
+  }
+
   const totalIncomplete = collaborators.filter((c) => !isChecklistComplete(c.checklist)).length;
 
   const filtered = useMemo(() => {
-    const term = keyword.trim().toLowerCase();
+    const term = searchKeyword.toLowerCase();
     return collaborators.filter((c) => {
       const matchesKeyword =
         !term ||
@@ -173,11 +183,11 @@ export default function CollaboratorListPage() {
 
       return matchesKeyword && matchesStatus;
     });
-  }, [collaborators, keyword, statusFilter]);
+  }, [collaborators, searchKeyword, statusFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [keyword, statusFilter, pageSize]);
+  }, [searchKeyword, statusFilter, pageSize]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -461,15 +471,46 @@ export default function CollaboratorListPage() {
       </div>
 
       <div className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-border-subtle/60 bg-white p-4 shadow-card">
-        <div className="min-w-[220px] flex-1">
+        <div className="min-w-[280px] flex-1">
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Tìm kiếm</label>
-          <input
-            type="text"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            placeholder="Tìm theo mã NV, họ tên, MST, email, ghi chú..."
-            className="input"
-          />
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSearch();
+            }}
+            className="flex items-center gap-2"
+          >
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Tìm theo mã NV, họ tên, MST, email, ghi chú..."
+                className={`input ${searchInput ? 'pr-9' : ''}`}
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={handleClearSearch}
+                  title="Xóa tìm kiếm"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            <button
+              type="submit"
+              className="btn-primary px-4 py-2 flex items-center gap-1.5 shrink-0"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              <span>Tìm kiếm</span>
+            </button>
+          </form>
         </div>
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Trạng thái hồ sơ</label>
@@ -537,7 +578,20 @@ export default function CollaboratorListPage() {
             {!loading && filtered.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-slate-500 font-medium">
-                  Không tìm thấy cộng tác viên nào.
+                  {searchKeyword ? (
+                    <div>
+                      <p>Không tìm thấy cộng tác viên nào phù hợp với từ khóa &ldquo;{searchKeyword}&rdquo;.</p>
+                      <button
+                        type="button"
+                        onClick={handleClearSearch}
+                        className="mt-2 text-xs font-semibold text-accent hover:underline cursor-pointer"
+                      >
+                        Xóa bộ lọc tìm kiếm
+                      </button>
+                    </div>
+                  ) : (
+                    'Không tìm thấy cộng tác viên nào.'
+                  )}
                 </td>
               </tr>
             )}
