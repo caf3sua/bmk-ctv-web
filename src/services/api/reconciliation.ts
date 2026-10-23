@@ -1,4 +1,5 @@
 import type {
+  ExpiringContractsHistoryListResponse,
   ExpiringContractsStatsResponse,
   ImportExpiringContractsResult,
   ImportHrBmkResult,
@@ -106,6 +107,7 @@ export async function listExpiringContracts(
   const query = new URLSearchParams();
   if (params?.keyword) query.set('keyword', params.keyword);
   if (params?.days) query.set('days', String(params.days));
+  if (params?.is_calculate_expired !== undefined) query.set('is_calculate_expired', String(params.is_calculate_expired));
   if (params?.page) query.set('page', String(params.page));
   if (params?.pageSize) query.set('page_size', String(params.pageSize));
 
@@ -124,6 +126,25 @@ export async function importExpiringContractsFile(file: File): Promise<ImportExp
     method: 'POST',
     body: formData,
   });
+}
+
+export async function listExpiringContractsHistory(
+  page: number = 1,
+  pageSize: number = 20
+): Promise<ExpiringContractsHistoryListResponse> {
+  const query = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  return apiFetch<ExpiringContractsHistoryListResponse>(`/reconciliation/expiring-contracts/history?${query.toString()}`);
+}
+
+export async function downloadExpiringContractsHistoryFile(id: string, filename: string): Promise<void> {
+  return downloadFile(`/reconciliation/expiring-contracts/history/${id}/download`, filename);
+}
+
+export async function downloadExpiringContractsResultFile(id: string, filename: string): Promise<void> {
+  return downloadFile(`/reconciliation/expiring-contracts/history/${id}/download-result`, filename);
 }
 
 

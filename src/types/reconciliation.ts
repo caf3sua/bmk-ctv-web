@@ -51,7 +51,9 @@ export interface ReconciliationRecord {
   employmentStatus?: string | null;
   onboardDate?: string | null;
   offboardDate?: string | null;
+  contractOnboardDate?: string | null;
   contractExpiryDate?: string | null;
+  isCalculateExpired?: boolean | null;
   tpbankInfo: TpBankInfo;
   bmkHrInfo: BmkHrInfo;
   bmkSystemInfo: BmkSystemInfo;
@@ -172,6 +174,7 @@ export interface ExpiringContractsStatsResponse {
 export interface ListExpiringContractsParams {
   keyword?: string;
   days?: number;
+  is_calculate_expired?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -182,6 +185,31 @@ export interface ImportExpiringContractsResult {
   totalProcessed: number;
   createdCount: number;
   updatedCount: number;
+}
+
+export interface ExpiringContractsHistoryRecord {
+  id: string;
+  filename: string;
+  s3Key: string;
+  s3Bucket: string;
+  fileSize?: number;
+  uploadedBy: string;
+  username: string;
+  totalRows: number;
+  createdCount: number;
+  updatedCount: number;
+  status: string;
+  message: string;
+  resultFile?: ReconciliationResultFileInfo | null;
+  createdAt: string;
+}
+
+export interface ExpiringContractsHistoryListResponse {
+  items: ExpiringContractsHistoryRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 
