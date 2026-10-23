@@ -465,7 +465,7 @@ export default function ExpiringContractsPage() {
                   <th className="py-3.5 px-4 w-14 text-center">STT</th>
                   <th className="py-3.5 px-4 min-w-[110px]">Mã NV</th>
                   <th className="py-3.5 px-4 min-w-[180px]">Họ và tên</th>
-                  <th className="py-3.5 px-4 min-w-[180px]">Ngày vào / Nghỉ</th>
+                  <th className="py-3.5 px-4 min-w-[140px]">Ngày gia nhập</th>
                   <th className="py-3.5 px-4 min-w-[140px]">Ngày đáo hạn</th>
                   <th className="py-3.5 px-4 min-w-[250px]">Thông báo</th>
                 </tr>
@@ -574,18 +574,15 @@ export default function ExpiringContractsPage() {
                           )}
                         </td>
 
-                        {/* 4. Ngày vào / Nghỉ */}
-                        <td className="py-3.5 px-4">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-slate-800 font-mono">
-                              Vào: {formatDate(r.onboardDate)}
+                        {/* 4. Ngày gia nhập */}
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          {r.contractOnboardDate ? (
+                            <span className="font-mono text-slate-800">
+                              {formatDate(r.contractOnboardDate)}
                             </span>
-                            {r.offboardDate && (
-                              <span className="text-rose-600 font-mono text-[11px]">
-                                Nghỉ: {formatDate(r.offboardDate)}
-                              </span>
-                            )}
-                          </div>
+                          ) : (
+                            <span className="font-mono text-slate-400">—</span>
+                          )}
                         </td>
 
                         {/* 5. Ngày đáo hạn */}

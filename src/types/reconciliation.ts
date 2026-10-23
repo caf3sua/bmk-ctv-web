@@ -51,6 +51,7 @@ export interface ReconciliationRecord {
   employmentStatus?: string | null;
   onboardDate?: string | null;
   offboardDate?: string | null;
+  contractOnboardDate?: string | null;
   contractExpiryDate?: string | null;
   tpbankInfo: TpBankInfo;
   bmkHrInfo: BmkHrInfo;
