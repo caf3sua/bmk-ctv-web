@@ -51,9 +51,7 @@ export interface ReconciliationRecord {
   employmentStatus?: string | null;
   onboardDate?: string | null;
   offboardDate?: string | null;
-  contractOnboardDate?: string | null;
-  contractExpiryDate?: string | null;
-  isCalculateExpired?: boolean | null;
+  calContractExpiryDate?: string | null;
   tpbankInfo: TpBankInfo;
   bmkHrInfo: BmkHrInfo;
   bmkSystemInfo: BmkSystemInfo;
@@ -211,5 +209,14 @@ export interface ExpiringContractsHistoryListResponse {
   pageSize: number;
   totalPages: number;
 }
+
+export interface CalculateContractExpiryResult {
+  status: string;
+  message: string;
+  calculatedCount: number;
+  totalActive: number;
+  month: string;
+}
+
 
 

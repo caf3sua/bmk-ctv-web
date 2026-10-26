@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
+import MonthPicker from '../components/MonthPicker';
 import ExpiringContractsBarChart from '../components/charts/ExpiringContractsBarChart';
 import EmploymentStatusPieChart from '../components/charts/EmploymentStatusPieChart';
 import {
+  calculateContractExpiry,
   downloadExpiringContractsHistoryFile,
   downloadExpiringContractsResultFile,
   downloadExpiringContractsTemplate,
+  exportExpiringContractsByMonth,
   getExpiringContractsStats,
   importExpiringContractsFile,
   listExpiringContracts,
@@ -100,8 +103,18 @@ export default function ExpiringContractsPage() {
   const [searchInput, setSearchInput] = useState<string>('');
   const [keyword, setKeyword] = useState<string>('');
   const [daysFilter, setDaysFilter] = useState<number | 'all'>('all');
-  const [calcExpiredFilter, setCalcExpiredFilter] = useState<boolean | 'all'>('all');
   const [listLoading, setListLoading] = useState<boolean>(true);
+
+  // Calculation state (Requirement 1)
+  const getCurrentMonthStr = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  };
+  const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonthStr);
+  const [isCalculating, setIsCalculating] = useState<boolean>(false);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
 
   // History state
   const [historyRecords, setHistoryRecords] = useState<ExpiringContractsHistoryRecord[]>([]);
@@ -137,7 +150,6 @@ export default function ExpiringContractsPage() {
       const res = await listExpiringContracts({
         keyword: keyword.trim() || undefined,
         days: daysFilter !== 'all' ? daysFilter : undefined,
-        is_calculate_expired: calcExpiredFilter !== 'all' ? calcExpiredFilter : undefined,
         page,
         pageSize,
       });
@@ -149,7 +161,7 @@ export default function ExpiringContractsPage() {
     } finally {
       setListLoading(false);
     }
-  }, [keyword, daysFilter, calcExpiredFilter, page, pageSize]);
+  }, [keyword, daysFilter, page, pageSize]);
 
   useEffect(() => {
     fetchRecords();
@@ -178,6 +190,37 @@ export default function ExpiringContractsPage() {
     fetchStats(selectedChartDays);
     fetchRecords();
     loadHistory();
+  };
+
+  const handleCalculateExpiry = async () => {
+    try {
+      setIsCalculating(true);
+      setSyncMessage(null);
+      const res = await calculateContractExpiry(selectedMonth);
+      setSyncMessage(res.message || `Đã tính ngày đáo hạn dự kiến thành công theo tháng ${selectedMonth}`);
+      setSyncMessageType('success');
+      await Promise.all([fetchStats(selectedChartDays), fetchRecords()]);
+    } catch (err: any) {
+      console.error('Lỗi khi tính ngày đáo hạn:', err);
+      setSyncMessage(err?.response?.data?.detail || err?.message || 'Có lỗi xảy ra khi tính ngày đáo hạn');
+      setSyncMessageType('error');
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    try {
+      setIsExporting(true);
+      setSyncMessage(null);
+      await exportExpiringContractsByMonth(selectedMonth);
+    } catch (err: any) {
+      console.error('Lỗi khi xuất dữ liệu:', err);
+      setSyncMessage(err?.response?.data?.detail || err?.message || 'Có lỗi xảy ra khi xuất dữ liệu hợp đồng đáo hạn');
+      setSyncMessageType('error');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleSearch = () => {
@@ -301,13 +344,13 @@ export default function ExpiringContractsPage() {
               {isDownloadingTemplate ? 'Đang tải mẫu...' : 'Tải file mẫu'}
             </button>
 
-            {/* Button 2: Import data ngày đáo hạn */}
+            {/* Button 2: Import data ngày gia nhập */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isImporting}
               className="btn-primary px-4 py-2 text-xs font-semibold flex items-center gap-1.5 border-primary bg-primary hover:bg-primary-dark text-white shadow-sm cursor-pointer disabled:opacity-50"
-              title="Upload file data ngày đáo hạn"
+              title="Upload file data ngày gia nhập"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -323,7 +366,7 @@ export default function ExpiringContractsPage() {
                   d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
                 />
               </svg>
-              {isImporting ? 'Đang import...' : 'Import data ngày đáo hạn'}
+              {isImporting ? 'Đang import...' : 'Import data ngày gia nhập'}
             </button>
 
             {/* Button 3: Refresh */}
@@ -473,10 +516,94 @@ export default function ExpiringContractsPage() {
         {/* TAB 1: DANH SÁCH HỢP ĐỒNG */}
         {activeTab === 'list' && (
           <>
+            {/* Thanh tính ngày đáo hạn dự kiến theo tháng (Phía trên 2 chart) */}
+            <div className="rounded-2xl border border-border-subtle/80 bg-white shadow-card p-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent shrink-0">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <span>Tính ngày đáo hạn dự kiến</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                      Chu kỳ 6 tháng
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Cộng thêm chu kỳ 6 tháng từ ngày gia nhập cho CTV còn hiệu lực đến khi đạt hoặc vượt tháng được chọn
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-slate-700 whitespace-nowrap">
+                    Chọn tháng:
+                  </label>
+                  <MonthPicker
+                    value={selectedMonth}
+                    onChange={setSelectedMonth}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCalculateExpiry}
+                  disabled={isCalculating}
+                  className="btn-primary py-2 px-4 text-xs font-semibold flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-60"
+                  title="Tính ngày đáo hạn cho các CTV còn hiệu lực"
+                >
+                  {isCalculating ? (
+                    <>
+                      <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      <span>Đang tính toán...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      <span>Tính ngày đáo hạn</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportData}
+                  disabled={isExporting}
+                  className="btn-secondary py-2 px-4 text-xs font-semibold flex items-center gap-2 border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 transition-colors shadow-sm cursor-pointer disabled:opacity-60"
+                  title="Xuất Excel danh sách CTV đáo hạn theo template template_export_danhsach_ctv_dao_han.xlsx (dùng cho Đối soát)"
+                >
+                  {isExporting ? (
+                    <>
+                      <svg className="animate-spin h-3.5 w-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      <span>Đang xuất...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span>Xuất dữ liệu</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Pie Chart: Trạng thái nhân sự */}
-              <div className="lg:col-span-1">
+              <div className="lg:col-span-1 rounded-2xl border border-border-subtle/80 bg-white p-5 shadow-card">
                 <EmploymentStatusPieChart
                   activeCount={stats?.pieChart.active ?? 0}
                   resignedCount={stats?.pieChart.resigned ?? 0}
@@ -487,7 +614,7 @@ export default function ExpiringContractsPage() {
               </div>
 
               {/* Bar Chart: Biến động Hợp đồng đến hạn */}
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-2 rounded-2xl border border-border-subtle/80 bg-white p-5 shadow-card">
                 <ExpiringContractsBarChart
                   data={stats?.barChart.items ?? []}
                   totalExpiring={stats?.barChart.totalExpiring ?? 0}
@@ -559,24 +686,10 @@ export default function ExpiringContractsPage() {
                     <option value="30">Đến hạn trong 30 ngày</option>
                     <option value="60">Đến hạn trong 60 ngày</option>
                   </select>
-
-                  {/* Filter CTV vừa upload tính đáo hạn */}
-                  <select
-                    value={calcExpiredFilter === 'all' ? 'all' : String(calcExpiredFilter)}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setCalcExpiredFilter(val === 'all' ? 'all' : val === 'true');
-                      setPage(1);
-                    }}
-                    className="input w-auto text-xs font-medium"
-                  >
-                    <option value="all">Tất cả CTV</option>
-                    <option value="true">Chỉ CTV đợt upload tính đáo hạn vừa rồi</option>
-                  </select>
                 </div>
 
                 {/* Page size & count */}
-                <div className="flex items-center gap-3 text-xs text-slate-500">
+                <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
                   <span>
                     Hiển thị <span className="font-semibold text-slate-800">{records.length}</span> /{' '}
                     <span className="font-semibold text-slate-800">{total}</span> CTV
@@ -607,7 +720,7 @@ export default function ExpiringContractsPage() {
                       <th className="py-3.5 px-4 min-w-[130px]">Mã NV</th>
                       <th className="py-3.5 px-4 min-w-[180px]">Họ và tên</th>
                       <th className="py-3.5 px-4 min-w-[140px]">Ngày gia nhập</th>
-                      <th className="py-3.5 px-4 min-w-[140px]">Ngày đáo hạn</th>
+                      <th className="py-3.5 px-4 min-w-[150px]">Ngày đáo hạn dự kiến</th>
                       <th className="py-3.5 px-4 min-w-[250px]">Thông báo</th>
                     </tr>
                   </thead>
@@ -683,7 +796,7 @@ export default function ExpiringContractsPage() {
                       // Data Rows
                       records.map((r, index) => {
                         const stt = (page - 1) * pageSize + index + 1;
-                        const notify = getNotificationInfo(r.contractExpiryDate);
+                        const notify = getNotificationInfo(r.calContractExpiryDate);
 
                         return (
                           <tr
@@ -696,18 +809,8 @@ export default function ExpiringContractsPage() {
                             </td>
 
                             {/* 2. Mã NV */}
-                            <td className="py-3.5 px-4 font-mono">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-bold text-primary">{r.employeeCode}</span>
-                                {r.isCalculateExpired && (
-                                  <span
-                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0"
-                                    title="CTV có trong dữ liệu upload tính ngày đáo hạn gần nhất"
-                                  >
-                                    Mới tính
-                                  </span>
-                                )}
-                              </div>
+                            <td className="py-3.5 px-4 font-mono font-bold text-primary">
+                              {r.employeeCode}
                             </td>
 
                             {/* 3. Họ và tên */}
@@ -727,20 +830,20 @@ export default function ExpiringContractsPage() {
 
                             {/* 4. Ngày gia nhập */}
                             <td className="py-3.5 px-4 whitespace-nowrap">
-                              {r.contractOnboardDate ? (
+                              {r.onboardDate ? (
                                 <span className="font-mono text-slate-800">
-                                  {formatDate(r.contractOnboardDate)}
+                                  {formatDate(r.onboardDate)}
                                 </span>
                               ) : (
                                 <span className="font-mono text-slate-400">—</span>
                               )}
                             </td>
 
-                            {/* 5. Ngày đáo hạn */}
+                            {/* 5. Ngày đáo hạn dự kiến */}
                             <td className="py-3.5 px-4 whitespace-nowrap">
-                              {r.contractExpiryDate ? (
+                              {r.calContractExpiryDate ? (
                                 <span className="font-mono font-semibold text-slate-900">
-                                  {formatDate(r.contractExpiryDate)}
+                                  {formatDate(r.calContractExpiryDate)}
                                 </span>
                               ) : (
                                 <span className="font-mono text-slate-400">—</span>

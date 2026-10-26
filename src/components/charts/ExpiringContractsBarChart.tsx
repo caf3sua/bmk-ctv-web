@@ -18,17 +18,56 @@ const PAD_RIGHT = 16;
 const PAD_TOP = 20;
 const PAD_BOTTOM = 22;
 
-function getYTicks(maxValue: number): number[] {
-  if (maxValue <= 4) {
-    return Array.from({ length: Math.max(2, maxValue + 1) }, (_, i) => i);
+function getNiceScale(rawMax: number): { maxValue: number; ticks: number[] } {
+  if (rawMax <= 0) {
+    return { maxValue: 4, ticks: [0, 1, 2, 3, 4] };
   }
-  const intervals = 4;
-  const ticks = new Set<number>([0]);
-  for (let i = 1; i < intervals; i++) {
-    ticks.add(Math.round((maxValue * i) / intervals));
+  if (rawMax <= 3) {
+    return { maxValue: 4, ticks: [0, 1, 2, 3, 4] };
   }
-  ticks.add(maxValue);
-  return Array.from(ticks).sort((a, b) => a - b);
+  if (rawMax <= 5) {
+    return { maxValue: 6, ticks: [0, 2, 4, 6] };
+  }
+  if (rawMax <= 8) {
+    return { maxValue: 10, ticks: [0, 2, 4, 6, 8, 10] };
+  }
+
+  // We want rawMax to occupy around 70-80% of the chart height, giving clear headroom for top labels
+  const targetMax = rawMax * 1.25;
+  const targetIntervals = 4;
+  const roughStep = targetMax / targetIntervals;
+
+  const power = Math.pow(10, Math.floor(Math.log10(roughStep)));
+  const fraction = roughStep / power;
+
+  let niceFraction: number;
+  if (fraction <= 1.2) {
+    niceFraction = 1;
+  } else if (fraction <= 2.2) {
+    niceFraction = 2;
+  } else if (fraction <= 3.2) {
+    niceFraction = 2.5;
+  } else if (fraction <= 6.5) {
+    niceFraction = 5;
+  } else {
+    niceFraction = 10;
+  }
+
+  const step = Math.max(1, Math.round(niceFraction * power));
+  let intervals = Math.ceil(rawMax / step);
+  // Ensure headroom above rawMax
+  if (intervals * step <= rawMax || rawMax / (intervals * step) > 0.85) {
+    intervals += 1;
+  }
+  intervals = Math.max(3, intervals);
+
+  const maxValue = intervals * step;
+  const ticks: number[] = [];
+  for (let i = 0; i <= intervals; i++) {
+    ticks.push(i * step);
+  }
+
+  return { maxValue, ticks };
 }
 
 export default function ExpiringContractsBarChart({
@@ -44,9 +83,7 @@ export default function ExpiringContractsBarChart({
   const plotHeight = HEIGHT - PAD_TOP - PAD_BOTTOM;
 
   const rawMax = Math.max(0, ...data.map((d) => d.count));
-  // Keep min scale at least 4 so the chart has sensible vertical space even with low/zero counts
-  const maxValue = Math.max(rawMax, 4);
-  const yTicks = getYTicks(maxValue);
+  const { maxValue, ticks: yTicks } = getNiceScale(rawMax);
 
   const countBars = data.length || 1;
   const slotWidth = plotWidth / countBars;
@@ -205,9 +242,13 @@ export default function ExpiringContractsBarChart({
                 {hasValue && (
                   <text
                     x={cx}
-                    y={Math.max(PAD_TOP + 10, y - 4)}
+                    y={Math.max(10, y - 5)}
                     textAnchor="middle"
-                    className="font-mono text-[9px] font-bold fill-slate-700 select-none"
+                    className={`font-mono text-[9px] select-none ${
+                      isHovered
+                        ? 'fill-slate-900 font-extrabold'
+                        : 'fill-slate-700 font-bold'
+                    }`}
                   >
                     {item.count}
                   </text>

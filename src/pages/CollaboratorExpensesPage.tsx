@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
-import ConfirmModal from '../components/ConfirmModal';
+import MonthPicker from '../components/MonthPicker';
 import CollaboratorMonthlyCountBarChart from '../components/charts/CollaboratorMonthlyCountBarChart';
 import PaymentMonthlyAmountBarChart from '../components/charts/PaymentMonthlyAmountBarChart';
 import {
@@ -70,9 +70,14 @@ export default function CollaboratorExpensesPage() {
   const [collabsPageSize, setCollabsPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const [collabsLoading, setCollabsLoading] = useState<boolean>(false);
 
-  // Import & Confirm Modal states
+  // Import Modal & Confirm states
+  const [showImportModal, setShowImportModal] = useState<boolean>(false);
+  const [importPeriod, setImportPeriod] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [importDragActive, setImportDragActive] = useState<boolean>(false);
   const [isImporting, setIsImporting] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState<boolean>(false);
@@ -209,30 +214,64 @@ export default function CollaboratorExpensesPage() {
     setCollabsPage(1);
   };
 
-  // Trigger file picker
-  const handleImportButtonClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-      fileInputRef.current.click();
+  // Trigger import modal
+  const handleOpenImportModal = () => {
+    if (selectedPeriod && selectedPeriod.length === 6) {
+      setImportPeriod(`${selectedPeriod.slice(0, 4)}-${selectedPeriod.slice(4)}`);
+    } else {
+      const d = new Date();
+      setImportPeriod(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
     }
+    setSelectedFile(null);
+    setShowImportModal(true);
   };
 
-  // When file is picked, show confirm modal
+  // When file is picked via input
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setShowConfirmModal(true);
+    }
+  };
+
+  // Drag and drop events for import modal
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setImportDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setImportDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setImportDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      const lower = file.name.toLowerCase();
+      if (lower.endsWith('.xlsx') || lower.endsWith('.xlsm')) {
+        setSelectedFile(file);
+      } else {
+        setActionMessage({
+          text: 'Chỉ hỗ trợ file Excel (.xlsx, .xlsm)',
+          type: 'error',
+        });
+      }
     }
   };
 
   // Perform upload after user confirms
   const handleConfirmImport = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !importPeriod) return;
     setIsImporting(true);
     setActionMessage(null);
     try {
-      const res = await importExpenseFile(selectedFile);
+      const res = await importExpenseFile(selectedFile, importPeriod);
+      setShowImportModal(false);
+      setSelectedFile(null);
       if (res.warnings && res.warnings.length > 0) {
         setImportWarnings(res.warnings);
         setShowWarningsModal(true);
@@ -247,8 +286,9 @@ export default function CollaboratorExpensesPage() {
           type: 'success',
         });
       }
-      setShowConfirmModal(false);
-      setSelectedFile(null);
+      // Chuyển bộ lọc hiển thị sang kỳ vừa import để người dùng thấy ngay dữ liệu mới
+      const normalizedPeriod = importPeriod.replace('-', '');
+      setSelectedPeriod(normalizedPeriod);
       // Reload stats, filters, and list
       await Promise.all([loadStats(), loadFilters()]);
       if (activeTab === 'details') {
@@ -409,7 +449,7 @@ export default function CollaboratorExpensesPage() {
                         type="button"
                         onClick={() => {
                           setDataMenuOpen(false);
-                          handleImportButtonClick();
+                          handleOpenImportModal();
                         }}
                         disabled={isImporting}
                         className="group flex flex-col items-center justify-start p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-200/80 transition-all cursor-pointer text-center disabled:opacity-60 disabled:cursor-not-allowed w-28 sm:w-32"
@@ -1119,48 +1159,231 @@ export default function CollaboratorExpensesPage() {
         </div>
       </div>
 
-      {/* CONFIRM MODAL BEFORE IMPORT */}
-      <ConfirmModal
-        isOpen={showConfirmModal}
-        title="Xác nhận Import dữ liệu thanh toán CTV"
-        variant="primary"
-        loading={isImporting}
-        confirmLabel={isImporting ? 'Đang xử lý...' : 'Xác nhận Import'}
-        cancelLabel="Hủy bỏ"
-        onCancel={() => {
-          if (!isImporting) {
-            setShowConfirmModal(false);
-            setSelectedFile(null);
-          }
-        }}
-        onConfirm={handleConfirmImport}
-        message={
-          <div className="space-y-3">
-            <p>
-              Bạn đã chọn file:{' '}
-              <strong className="text-slate-900 font-mono">
-                {selectedFile?.name}
-              </strong>{' '}
-              ({selectedFile ? `${(selectedFile.size / 1024).toFixed(1)} KB` : ''}).
-            </p>
-            <p className="text-xs text-slate-600">
-              Quy tắc thực hiện:
-            </p>
-            <ul className="list-disc pl-4 text-xs text-slate-600 space-y-1">
-              <li>
-                Kiểm tra từng cộng tác viên trong danh sách đối soát (<code>bmk_ctv_reconciliations</code>). Nếu CTV chưa tồn tại, hệ thống sẽ tự động tạo mới hồ sơ cơ bản.
-              </li>
-              <li>
-                Cập nhật chi tiết các khoản thanh toán vào collection chi phí hàng tháng (Unique key: Mã CTV + Ngày BMK thanh toán).
-              </li>
-              <li>
-                Tính toán lại tổng số lần nhận thanh toán cho từng CTV.
-              </li>
-            </ul>
+      {/* DIALOG IMPORT DỮ LIỆU THANH TOÁN CTV */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="relative w-full max-w-xl rounded-3xl bg-white shadow-2xl border border-slate-100 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/10 text-accent ring-4 ring-accent/5">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                </span>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                    Import dữ liệu thanh toán CTV
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Chọn tháng áp dụng và file dữ liệu Excel để tiến hành import
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isImporting) {
+                    setShowImportModal(false);
+                    setSelectedFile(null);
+                  }
+                }}
+                disabled={isImporting}
+                className="rounded-xl p-2 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+              {/* Bước 1: Chọn tháng áp dụng (MonthPicker) */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  1. Chọn tháng chi phí (Kỳ import) <span className="text-rose-500">*</span>
+                </label>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="w-full sm:w-64">
+                    <MonthPicker
+                      value={importPeriod}
+                      onChange={(newVal) => setImportPeriod(newVal)}
+                      disabled={isImporting}
+                    />
+                  </div>
+                  <div className="text-xs text-slate-600 flex items-center gap-1.5 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 flex-1">
+                    <svg className="w-4 h-4 text-accent flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>
+                      Dữ liệu file sẽ được gán kỳ: <strong className="text-slate-900 font-mono">Tháng {formatPeriodBadge(importPeriod.replace('-', ''))}</strong> ({importPeriod.replace('-', '')})
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bước 2: Chọn file */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    2. Chọn file dữ liệu (.xlsx, .xlsm) <span className="text-rose-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleDownloadTemplate}
+                    disabled={isDownloadingTemplate}
+                    className="text-xs text-accent hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>{isDownloadingTemplate ? 'Đang tải mẫu...' : 'Tải file mẫu'}</span>
+                  </button>
+                </div>
+
+                {!selectedFile ? (
+                  <div
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
+                      importDragActive
+                        ? 'border-accent bg-accent/5'
+                        : 'border-slate-200 hover:border-accent/60 hover:bg-slate-50/60'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-12 h-12 rounded-2xl bg-accent/10 text-accent flex items-center justify-center">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <p className="text-xs sm:text-sm font-semibold text-slate-700">
+                        Kéo thả file vào đây hoặc <span className="text-accent underline font-bold">chọn từ máy tính</span>
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        Chỉ hỗ trợ file Excel (.xlsx, .xlsm) theo đúng cấu trúc mẫu
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-4 rounded-2xl border border-accent/30 bg-accent/5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-accent text-white flex items-center justify-center flex-shrink-0 font-bold text-xs">
+                        XLS
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-800 truncate" title={selectedFile.name}>
+                          {selectedFile.name}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-mono">
+                          {(selectedFile.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isImporting}
+                        className="text-xs font-semibold text-accent hover:underline cursor-pointer px-2 py-1"
+                      >
+                        Đổi file
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFile(null)}
+                        disabled={isImporting}
+                        className="text-xs font-semibold text-rose-500 hover:text-rose-700 cursor-pointer px-2 py-1"
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Bước 3: Confirm lại thông tin & Cảnh báo xóa dữ liệu cũ */}
+              {selectedFile && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 space-y-2.5 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2 text-amber-800 font-bold text-xs uppercase tracking-wider">
+                    <svg className="w-4 h-4 text-amber-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <span>Xác nhận thông tin Import</span>
+                  </div>
+                  <div className="text-xs text-amber-900 space-y-1.5">
+                    <p>
+                      File <strong className="font-mono text-slate-900">{selectedFile.name}</strong> sẽ được import cho{' '}
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full font-bold bg-amber-200/80 text-amber-950">
+                        Tháng {formatPeriodBadge(importPeriod.replace('-', ''))}
+                      </span>
+                    </p>
+                    <ul className="list-disc pl-4 space-y-1 text-amber-800 text-[11px] leading-relaxed">
+                      <li>
+                        <strong>Xóa sạch dữ liệu cũ:</strong> Trước khi import, toàn bộ dữ liệu chi tiết hiện có của kỳ <strong>Tháng {formatPeriodBadge(importPeriod.replace('-', ''))}</strong> ({importPeriod.replace('-', '')}) trong hệ thống sẽ được xóa sạch để thực hiện import lại từ đầu.
+                      </li>
+                      <li>
+                        <strong>Cập nhật kỳ (period):</strong> Toàn bộ các dòng chi phí trong file sẽ được gán thuộc tính <code>period = {importPeriod.replace('-', '')}</code>.
+                      </li>
+                      <li>
+                        <strong>Đồng bộ CTV:</strong> Tự động bổ sung CTV vào danh sách đối soát nếu chưa có và tính lại tổng số lần thanh toán cho các CTV liên quan.
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-100 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isImporting) {
+                    setShowImportModal(false);
+                    setSelectedFile(null);
+                  }
+                }}
+                disabled={isImporting}
+                className="rounded-full px-5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmImport}
+                disabled={!selectedFile || !importPeriod || isImporting}
+                className="rounded-full px-6 py-2.5 text-xs font-bold text-white bg-accent hover:bg-accent/90 shadow-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isImporting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Đang xử lý import...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <span>
+                      {selectedFile
+                        ? `Xác nhận Import cho Tháng ${formatPeriodBadge(importPeriod.replace('-', ''))}`
+                        : 'Xác nhận Import'}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-        }
-        note="Vui lòng đảm bảo các cột dữ liệu trong file khớp với mẫu import_thanh_toan_phi_CTV.xlsx trước khi tiến hành."
-      />
+        </div>
+      )}
 
       {/* WARNINGS MODAL (Khi import có ngày gia nhập/chấm dứt khác hệ thống) */}
       {showWarningsModal && (

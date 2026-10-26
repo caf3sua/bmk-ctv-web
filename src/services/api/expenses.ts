@@ -79,9 +79,13 @@ export async function exportExpenseData(params: {
   return downloadFile(`/expenses/export${qs ? `?${qs}` : ''}`, filename);
 }
 
-export async function importExpenseFile(file: File): Promise<ExpenseImportResponse> {
+export async function importExpenseFile(
+  file: File,
+  period: string
+): Promise<ExpenseImportResponse> {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('period', period);
   return apiFetch<ExpenseImportResponse>('/expenses/import', {
     method: 'POST',
     body: formData,

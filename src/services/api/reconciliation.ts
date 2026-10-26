@@ -1,4 +1,5 @@
 import type {
+  CalculateContractExpiryResult,
   ExpiringContractsHistoryListResponse,
   ExpiringContractsStatsResponse,
   ImportExpiringContractsResult,
@@ -145,6 +146,24 @@ export async function downloadExpiringContractsHistoryFile(id: string, filename:
 
 export async function downloadExpiringContractsResultFile(id: string, filename: string): Promise<void> {
   return downloadFile(`/reconciliation/expiring-contracts/history/${id}/download-result`, filename);
+}
+
+export async function calculateContractExpiry(month: string): Promise<CalculateContractExpiryResult> {
+  return apiFetch<CalculateContractExpiryResult>('/reconciliation/calculate-contract-expiry', {
+    method: 'POST',
+    body: JSON.stringify({ month }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+}
+
+export async function exportExpiringContractsByMonth(month: string): Promise<void> {
+  const [y, m] = month.split('-');
+  return downloadFile(
+    `/reconciliation/export-expiring-contracts?month=${encodeURIComponent(month)}`,
+    `danh_sach_dao_han_thang_${m}_${y}.xlsx`
+  );
 }
 
 
