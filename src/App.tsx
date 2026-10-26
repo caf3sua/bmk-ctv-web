@@ -13,6 +13,7 @@ import UploadHistoryPage from './pages/UploadHistoryPage';
 import UploadDocumentsPage from './pages/UploadDocumentsPage';
 import ReconciliationPage from './pages/ReconciliationPage';
 import ExpiringContractsPage from './pages/ExpiringContractsPage';
+import CollaboratorExpensesPage from './pages/CollaboratorExpensesPage';
 
 export default function App() {
   return (
@@ -57,6 +58,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ExpiringContractsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/collaborator-expenses"
+            element={
+              <ProtectedRoute>
+                <CollaboratorExpensesPage />
               </ProtectedRoute>
             }
           />

@@ -53,6 +53,16 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    to: '/collaborator-expenses',
+    label: 'Quản lý chi phí',
+    end: false,
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-5 w-5 flex-shrink-0">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6H2.25m0 0v1.5a.75.75 0 00.75.75H4.5m-2.25-2.25h1.5a.75.75 0 01.75.75v1.5m0-3a.75.75 0 00-.75-.75H2.25m19.5 3a.75.75 0 01-.75.75h-1.5a.75.75 0 01-.75-.75v-1.5a.75.75 0 01.75-.75h1.5a.75.75 0 01.75.75v1.5m-3 0a.75.75 0 00.75.75h1.5a.75.75 0 00.75-.75v-1.5m-3 0a.75.75 0 01.75-.75h1.5a.75.75 0 01.75.75v1.5m-9 3.75h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" />
+      </svg>
+    ),
+  },
 ];
 
 const adminNavGroup = {
