@@ -79,6 +79,11 @@ export async function exportExpenseData(params: {
   return downloadFile(`/expenses/export${qs ? `?${qs}` : ''}`, filename);
 }
 
+export async function exportMonthlyExpenseData(year: number): Promise<void> {
+  const filename = `bao_cao_chi_phi_ctv_theo_thang_${year}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  return downloadFile(`/expenses/export-monthly?year=${year}`, filename);
+}
+
 export async function importExpenseFile(
   file: File,
   period: string

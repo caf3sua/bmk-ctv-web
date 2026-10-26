@@ -7,6 +7,7 @@ import PaymentMonthlyAmountBarChart from '../components/charts/PaymentMonthlyAmo
 import {
   downloadExpenseTemplate,
   exportExpenseData,
+  exportMonthlyExpenseData,
   getExpenseStats,
   importExpenseFile,
   listExpenseCollaborators,
@@ -81,6 +82,9 @@ export default function CollaboratorExpensesPage() {
   const [isImporting, setIsImporting] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState<boolean>(false);
+  const [showYearExportModal, setShowYearExportModal] = useState<boolean>(false);
+  const [exportYear, setExportYear] = useState<number>(() => new Date().getFullYear());
+  const [isExportingMonthly, setIsExportingMonthly] = useState<boolean>(false);
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [showWarningsModal, setShowWarningsModal] = useState<boolean>(false);
   const [actionMessage, setActionMessage] = useState<{
@@ -342,6 +346,26 @@ export default function CollaboratorExpensesPage() {
     }
   };
 
+  // Export monthly expenses by year
+  const handleConfirmExportMonthly = async () => {
+    setIsExportingMonthly(true);
+    try {
+      await exportMonthlyExpenseData(exportYear);
+      setShowYearExportModal(false);
+      setActionMessage({
+        text: `Đã xuất báo cáo chi phí CTV theo tháng cho năm ${exportYear} thành công`,
+        type: 'success',
+      });
+    } catch (err: unknown) {
+      setActionMessage({
+        text: err instanceof Error ? err.message : 'Xuất báo cáo theo tháng thất bại',
+        type: 'error',
+      });
+    } finally {
+      setIsExportingMonthly(false);
+    }
+  };
+
   // Filter directly by collaborator code from table
   const handleFilterByCollaborator = (code: string) => {
     setSearchInput(code);
@@ -546,6 +570,33 @@ export default function CollaboratorExpensesPage() {
                         </div>
                         <span className="text-xs font-semibold text-slate-700 group-hover:text-accent leading-tight text-center min-h-[2.25rem] flex items-start justify-center">
                           Xuất tổng hợp CTV
+                        </span>
+                      </button>
+
+                      {/* Item 4: Xuất thanh toán theo tháng */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDataMenuOpen(false);
+                          setShowYearExportModal(true);
+                        }}
+                        disabled={isExportingMonthly}
+                        className="group flex flex-col items-center justify-start p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-200/80 transition-all cursor-pointer text-center disabled:opacity-60 disabled:cursor-not-allowed w-28 sm:w-32"
+                      >
+                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-emerald-50 text-emerald-600 border border-emerald-100/60 transition-transform group-hover:scale-105 group-hover:shadow-sm mb-2">
+                          {isExportingMonthly ? (
+                            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          ) : (
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-xs font-semibold text-slate-700 group-hover:text-accent leading-tight text-center min-h-[2.25rem] flex items-start justify-center">
+                          {isExportingMonthly ? 'Đang xuất...' : 'Xuất thanh toán theo tháng'}
                         </span>
                       </button>
                     </div>
@@ -1377,6 +1428,179 @@ export default function CollaboratorExpensesPage() {
                         ? `Xác nhận Import cho Tháng ${formatPeriodBadge(importPeriod.replace('-', ''))}`
                         : 'Xác nhận Import'}
                     </span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DIALOG XUẤT THANH TOÁN THEO THÁNG (YEAR PICKER & CONFIRM) */}
+      {showYearExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-100 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-4 ring-emerald-500/10">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </span>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                    Xuất thanh toán theo tháng
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Tổng hợp chi phí cộng tác viên theo từng tháng trong năm
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isExportingMonthly) {
+                    setShowYearExportModal(false);
+                  }
+                }}
+                disabled={isExportingMonthly}
+                className="rounded-xl p-2 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* Year Picker */}
+              <div className="space-y-3">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 text-center">
+                  Chọn năm xuất báo cáo <span className="text-rose-500">*</span>
+                </label>
+
+                {/* Main Year Stepper */}
+                <div className="flex items-center justify-center gap-4 bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
+                  <button
+                    type="button"
+                    onClick={() => setExportYear((prev) => prev - 1)}
+                    disabled={isExportingMonthly || exportYear <= 2010}
+                    className="h-10 w-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300 shadow-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Năm trước"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+
+                  <div className="px-6 py-1 text-center min-w-[140px]">
+                    <span className="text-2xl font-black font-mono tracking-tight text-slate-900">
+                      {exportYear}
+                    </span>
+                    <span className="block text-[11px] font-medium text-slate-400 uppercase tracking-widest mt-0.5">
+                      NĂM BÁO CÁO
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setExportYear((prev) => prev + 1)}
+                    disabled={isExportingMonthly || exportYear >= 2040}
+                    className="h-10 w-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300 shadow-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Năm sau"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Quick select year chips */}
+                <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
+                  {[
+                    new Date().getFullYear() - 2,
+                    new Date().getFullYear() - 1,
+                    new Date().getFullYear(),
+                    new Date().getFullYear() + 1,
+                  ].map((y) => (
+                    <button
+                      key={y}
+                      type="button"
+                      onClick={() => setExportYear(y)}
+                      disabled={isExportingMonthly}
+                      className={`px-3.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                        exportYear === y
+                          ? 'bg-accent text-white shadow-xs ring-2 ring-accent/30'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {y}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Confirmation Notice */}
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs uppercase tracking-wider">
+                  <svg className="w-4 h-4 text-emerald-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <span>Xác nhận thông tin xuất báo cáo năm {exportYear}</span>
+                </div>
+                <ul className="list-disc pl-4 space-y-1.5 text-xs text-emerald-900 leading-relaxed">
+                  <li>
+                    Sử dụng mẫu biểu <strong>export_bao_cao_chi_phi_theo_thang.xlsx</strong>.
+                  </li>
+                  <li>
+                    Tổng hợp chi phí thực nhận của từng CTV theo 12 tháng (Tháng 1 đến Tháng 12) của năm <strong>{exportYear}</strong>.
+                  </li>
+                  <li>
+                    <strong>Tháng nào CTV không có chi phí sẽ để trống</strong> theo đúng quy định.
+                  </li>
+                  <li>
+                    Tự động tính tổng thực lĩnh cả năm và dòng <strong>TỔNG CỘNG</strong> ở chân bảng.
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-100 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isExportingMonthly) {
+                    setShowYearExportModal(false);
+                  }
+                }}
+                disabled={isExportingMonthly}
+                className="rounded-full px-5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmExportMonthly}
+                disabled={isExportingMonthly}
+                className="rounded-full px-6 py-2.5 text-xs font-bold text-white bg-accent hover:bg-accent/90 shadow-sm transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
+              >
+                {isExportingMonthly ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Đang xuất file Excel...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>Xác nhận Xuất báo cáo năm {exportYear}</span>
                   </>
                 )}
               </button>
