@@ -76,6 +76,8 @@ export default function CollaboratorExpensesPage() {
   const [isImporting, setIsImporting] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState<boolean>(false);
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
+  const [showWarningsModal, setShowWarningsModal] = useState<boolean>(false);
   const [actionMessage, setActionMessage] = useState<{
     text: string;
     type: 'success' | 'error' | 'warning';
@@ -231,10 +233,20 @@ export default function CollaboratorExpensesPage() {
     setActionMessage(null);
     try {
       const res = await importExpenseFile(selectedFile);
-      setActionMessage({
-        text: res.message,
-        type: 'success',
-      });
+      if (res.warnings && res.warnings.length > 0) {
+        setImportWarnings(res.warnings);
+        setShowWarningsModal(true);
+        setActionMessage({
+          text: res.message,
+          type: 'warning',
+        });
+      } else {
+        setImportWarnings([]);
+        setActionMessage({
+          text: res.message,
+          type: 'success',
+        });
+      }
       setShowConfirmModal(false);
       setSelectedFile(null);
       // Reload stats, filters, and list
@@ -511,11 +523,11 @@ export default function CollaboratorExpensesPage() {
               actionMessage.type === 'success'
                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                 : actionMessage.type === 'warning'
-                ? 'bg-amber-50 text-amber-800 border-amber-200'
+                ? 'bg-amber-50 text-amber-900 border-amber-200'
                 : 'bg-rose-50 text-rose-800 border-rose-200'
             }`}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {actionMessage.type === 'success' ? (
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -526,6 +538,19 @@ export default function CollaboratorExpensesPage() {
                   <path
                     fillRule="evenodd"
                     d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              ) : actionMessage.type === 'warning' ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="w-5 h-5 flex-shrink-0 text-amber-600"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
                     clipRule="evenodd"
                   />
                 </svg>
@@ -544,6 +569,15 @@ export default function CollaboratorExpensesPage() {
                 </svg>
               )}
               <span>{actionMessage.text}</span>
+              {importWarnings.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowWarningsModal(true)}
+                  className="inline-flex items-center gap-1 font-semibold text-amber-800 underline hover:text-amber-950 cursor-pointer text-xs ml-2"
+                >
+                  Xem chi tiết {importWarnings.length} cảnh báo
+                </button>
+              )}
             </div>
             <button
               type="button"
@@ -930,7 +964,9 @@ export default function CollaboratorExpensesPage() {
                     <th className="py-3 px-4">Mã CTV</th>
                     <th className="py-3 px-4">Họ và tên</th>
                     <th className="py-3 px-4">Mã số thuế</th>
-                    <th className="py-3 px-4 text-center">Số lần nhận thanh toán</th>
+                    <th className="py-3 px-4 text-center">Số lần nhận TT</th>
+                    <th className="py-3 px-4 text-center">Ngày gia nhập</th>
+                    <th className="py-3 px-4 text-center">Ngày chấm dứt</th>
                     <th className="py-3 px-4 text-center">Ngày TT gần nhất</th>
                     <th className="py-3 px-4 text-center">Kỳ gần nhất</th>
                     <th className="py-3 px-4 text-right">Thao tác</th>
@@ -939,7 +975,7 @@ export default function CollaboratorExpensesPage() {
                 <tbody className="divide-y divide-slate-100">
                   {collabsLoading ? (
                     <tr>
-                      <td colSpan={8} className="py-12 text-center text-slate-400">
+                      <td colSpan={10} className="py-12 text-center text-slate-400">
                         <div className="inline-flex items-center gap-2">
                           <span className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
                           Đang tải danh sách tổng hợp...
@@ -948,7 +984,7 @@ export default function CollaboratorExpensesPage() {
                     </tr>
                   ) : collabs.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-12 text-center text-slate-400">
+                      <td colSpan={10} className="py-12 text-center text-slate-400">
                         Không tìm thấy cộng tác viên nào
                       </td>
                     </tr>
@@ -974,6 +1010,12 @@ export default function CollaboratorExpensesPage() {
                           <span className="rounded-full bg-emerald-50 px-3 py-1 font-mono text-xs font-bold text-accent border border-emerald-200">
                             {collab.totalPaymentCount} lần
                           </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-mono text-slate-700">
+                          {collab.onboardDate ? formatDate(collab.onboardDate) : '—'}
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-mono text-slate-700">
+                          {collab.offboardDate ? formatDate(collab.offboardDate) : '—'}
                         </td>
                         <td className="py-3.5 px-4 text-center font-mono text-slate-700">
                           {formatDate(collab.latestPaymentDate)}
@@ -1119,6 +1161,60 @@ export default function CollaboratorExpensesPage() {
         }
         note="Vui lòng đảm bảo các cột dữ liệu trong file khớp với mẫu import_thanh_toan_phi_CTV.xlsx trước khi tiến hành."
       />
+
+      {/* WARNINGS MODAL (Khi import có ngày gia nhập/chấm dứt khác hệ thống) */}
+      {showWarningsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="relative w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl border border-amber-200">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Cảnh báo ngày gia nhập / ngày chấm dứt
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Phát hiện {importWarnings.length} trường hợp ngày trong file khác ngày đã có trong hệ thống (Hệ thống chỉ cập nhật từ giá trị trống, dữ liệu đã có được bảo toàn).
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWarningsModal(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-4 max-h-80 overflow-y-auto space-y-2 pr-1">
+              {importWarnings.map((warn, wIdx) => (
+                <div
+                  key={wIdx}
+                  className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900 flex items-start gap-2.5"
+                >
+                  <span className="font-mono font-bold text-amber-700 min-w-[24px]">#{wIdx + 1}</span>
+                  <span className="leading-relaxed">{warn}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowWarningsModal(false)}
+                className="rounded-xl bg-slate-800 px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-slate-900 transition-all cursor-pointer"
+              >
+                Đã hiểu & Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

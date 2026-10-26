@@ -31,6 +31,8 @@ export interface CollaboratorExpenseSummary {
   fullName: string;
   taxCode?: string;
   totalPaymentCount: number;
+  onboardDate?: string | null;
+  offboardDate?: string | null;
   latestPaymentDate?: string | null;
   latestPeriod?: string | null;
   createdAt?: string;
@@ -72,6 +74,7 @@ export interface ExpenseImportResponse {
   newReconciliationCreated: number;
   collaboratorsCount: number;
   periodsAffected: string[];
+  warnings?: string[];
   message: string;
 }
 
