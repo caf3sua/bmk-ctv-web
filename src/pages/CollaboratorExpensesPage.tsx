@@ -4,10 +4,12 @@ import Pagination from '../components/Pagination';
 import MonthPicker from '../components/MonthPicker';
 import CollaboratorMonthlyCountBarChart from '../components/charts/CollaboratorMonthlyCountBarChart';
 import PaymentMonthlyAmountBarChart from '../components/charts/PaymentMonthlyAmountBarChart';
+import CollaboratorExpenseHistoryBarChart from '../components/charts/CollaboratorExpenseHistoryBarChart';
 import {
   downloadExpenseTemplate,
   exportExpenseData,
   exportMonthlyExpenseData,
+  getCollaboratorExpenseDetail,
   getExpenseStats,
   importExpenseFile,
   listExpenseCollaborators,
@@ -16,6 +18,7 @@ import {
   listExpensePeriods,
 } from '../services/api/expenses';
 import type {
+  CollaboratorExpenseDetailResponse,
   CollaboratorExpenseSummary,
   ExpenseDetailItem,
   ExpenseStatsResponse,
@@ -40,8 +43,8 @@ export default function CollaboratorExpensesPage() {
   const dataMenuRef = useRef<HTMLDivElement>(null);
   const [dataMenuOpen, setDataMenuOpen] = useState<boolean>(false);
 
-  // Active Tab: 'details' (Chi tiết thanh toán) hoặc 'collaborators' (Tổng hợp theo CTV)
-  const [activeTab, setActiveTab] = useState<'details' | 'collaborators'>('details');
+  // Active Tab: 'collaborators' (Chi phí của CTV) hoặc 'details' (Chi tiết thanh toán)
+  const [activeTab, setActiveTab] = useState<'details' | 'collaborators'>('collaborators');
 
   // Stats state
   const [stats, setStats] = useState<ExpenseStatsResponse | null>(null);
@@ -82,6 +85,11 @@ export default function CollaboratorExpensesPage() {
   const [isImporting, setIsImporting] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState<boolean>(false);
+  const [showExportDetailsModal, setShowExportDetailsModal] = useState<boolean>(false);
+  const [exportDetailsMonth, setExportDetailsMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [showYearExportModal, setShowYearExportModal] = useState<boolean>(false);
   const [exportYear, setExportYear] = useState<number>(() => new Date().getFullYear());
   const [isExportingMonthly, setIsExportingMonthly] = useState<boolean>(false);
@@ -91,6 +99,13 @@ export default function CollaboratorExpensesPage() {
     text: string;
     type: 'success' | 'error' | 'warning';
   } | null>(null);
+
+  // Collaborator Detail Modal state
+  const [showCollabDetailModal, setShowCollabDetailModal] = useState<boolean>(false);
+  const [selectedCollabCode, setSelectedCollabCode] = useState<string | null>(null);
+  const [collabDetailData, setCollabDetailData] = useState<CollaboratorExpenseDetailResponse | null>(null);
+  const [collabDetailLoading, setCollabDetailLoading] = useState<boolean>(false);
+  const [collabDetailError, setCollabDetailError] = useState<string | null>(null);
 
   // Fetch filter options (periods & locations)
   const loadFilters = useCallback(async () => {
@@ -326,8 +341,51 @@ export default function CollaboratorExpensesPage() {
     }
   };
 
+  // Open Month Picker modal for exporting details
+  const handleOpenExportDetailsModal = () => {
+    if (selectedPeriod && selectedPeriod.length === 6) {
+      setExportDetailsMonth(`${selectedPeriod.slice(0, 4)}-${selectedPeriod.slice(4)}`);
+    } else if (periods && periods.length > 0 && periods[0].length === 6) {
+      setExportDetailsMonth(`${periods[0].slice(0, 4)}-${periods[0].slice(4)}`);
+    } else {
+      const d = new Date();
+      setExportDetailsMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+    setShowExportDetailsModal(true);
+  };
+
+  // Confirm export details by chosen month
+  const handleConfirmExportDetails = async () => {
+    if (!exportDetailsMonth) return;
+    setIsExporting(true);
+    try {
+      const cleanPeriod = exportDetailsMonth.replace('-', '');
+      await exportExpenseData({
+        mode: 'details',
+        period: cleanPeriod,
+      });
+      setShowExportDetailsModal(false);
+      const [y, m] = exportDetailsMonth.split('-');
+      setActionMessage({
+        text: `Đã xuất chi tiết thanh toán tháng ${m}/${y} thành công`,
+        type: 'success',
+      });
+    } catch (err: unknown) {
+      setActionMessage({
+        text: err instanceof Error ? err.message : 'Xuất chi tiết thanh toán thất bại',
+        type: 'error',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Export list
   const handleExport = async (mode: 'details' | 'collaborators' = activeTab) => {
+    if (mode === 'details') {
+      handleOpenExportDetailsModal();
+      return;
+    }
     setIsExporting(true);
     try {
       await exportExpenseData({
@@ -366,12 +424,29 @@ export default function CollaboratorExpensesPage() {
     }
   };
 
-  // Filter directly by collaborator code from table
-  const handleFilterByCollaborator = (code: string) => {
-    setSearchInput(code);
-    setSearchKeyword(code);
-    setActiveTab('details');
-    setDetailsPage(1);
+  // Open collaborator detail dialog
+  const handleOpenCollabDetail = async (code: string) => {
+    setSelectedCollabCode(code);
+    setShowCollabDetailModal(true);
+    setCollabDetailLoading(true);
+    setCollabDetailError(null);
+    try {
+      const data = await getCollaboratorExpenseDetail(code);
+      setCollabDetailData(data);
+    } catch (err: unknown) {
+      setCollabDetailError(
+        err instanceof Error ? err.message : 'Không thể tải thông tin chi tiết của cộng tác viên'
+      );
+    } finally {
+      setCollabDetailLoading(false);
+    }
+  };
+
+  const handleCloseCollabDetail = () => {
+    setShowCollabDetailModal(false);
+    setSelectedCollabCode(null);
+    setCollabDetailData(null);
+    setCollabDetailError(null);
   };
 
   return (
@@ -531,7 +606,7 @@ export default function CollaboratorExpensesPage() {
                         type="button"
                         onClick={() => {
                           setDataMenuOpen(false);
-                          handleExport('details');
+                          handleOpenExportDetailsModal();
                         }}
                         disabled={isExporting}
                         className="group flex flex-col items-center justify-start p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-200/80 transition-all cursor-pointer text-center disabled:opacity-60 disabled:cursor-not-allowed w-28 sm:w-32"
@@ -842,6 +917,20 @@ export default function CollaboratorExpensesPage() {
               <button
                 type="button"
                 onClick={() => {
+                  setActiveTab('collaborators');
+                  setCollabsPage(1);
+                }}
+                className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                  activeTab === 'collaborators'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Chi phí của CTV ({collabsTotal.toLocaleString('vi-VN')})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setActiveTab('details');
                   setDetailsPage(1);
                 }}
@@ -852,20 +941,6 @@ export default function CollaboratorExpensesPage() {
                 }`}
               >
                 Chi tiết thanh toán ({detailsTotal.toLocaleString('vi-VN')})
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('collaborators');
-                  setCollabsPage(1);
-                }}
-                className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
-                  activeTab === 'collaborators'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Tổng hợp theo CTV ({collabsTotal.toLocaleString('vi-VN')})
               </button>
             </div>
 
@@ -1123,10 +1198,23 @@ export default function CollaboratorExpensesPage() {
                         <td className="py-3.5 px-4 text-right">
                           <button
                             type="button"
-                            onClick={() => handleFilterByCollaborator(collab.employeeCode)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-accent transition-all cursor-pointer"
+                            onClick={() => handleOpenCollabDetail(collab.employeeCode)}
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-accent/80 hover:underline cursor-pointer group transition-colors"
                           >
-                            Xem chi tiết
+                            <span>Xem chi tiết</span>
+                            <svg
+                              className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
                           </button>
                         </td>
                       </tr>
@@ -1436,12 +1524,188 @@ export default function CollaboratorExpensesPage() {
         </div>
       )}
 
+      {/* DIALOG XUẤT CHI TIẾT THANH TOÁN (MONTH PICKER) */}
+      {showExportDetailsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-100">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-rose-50/50 rounded-t-3xl">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 ring-4 ring-rose-500/10">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </span>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                    Xuất chi tiết thanh toán theo tháng
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Xuất tất cả chi tiết thanh toán của cộng tác viên trong tháng
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isExporting) {
+                    setShowExportDetailsModal(false);
+                  }
+                }}
+                disabled={isExporting}
+                className="rounded-xl p-2 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* Month Picker Control */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Chọn tháng cần xuất dữ liệu <span className="text-rose-500">*</span>
+                  </label>
+
+                  {/* Tooltip Icon Information */}
+                  <div className="relative inline-flex items-center group">
+                    <button
+                      type="button"
+                      className="text-blue-600 hover:text-blue-700 focus:outline-hidden transition-colors cursor-pointer p-0.5 rounded-full hover:bg-blue-50"
+                      aria-label="Quy chuẩn xuất dữ liệu chi tiết"
+                    >
+                      <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+
+                    {/* Tooltip Popover (Light style matching image 2) */}
+                    <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition-all duration-200 pointer-events-none absolute left-[-60px] sm:left-[-120px] top-full mt-2 z-50 w-80 sm:w-[380px] p-4 rounded-2xl bg-white text-slate-700 shadow-xl shadow-slate-900/10 border border-slate-200 text-left">
+                      <div className="flex items-center gap-2 pb-2.5 mb-2.5 border-b border-slate-100 text-xs font-bold text-slate-800 tracking-wide">
+                        <span className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                        </span>
+                        <span>QUY CHUẨN XUẤT DỮ LIỆU CHI TIẾT</span>
+                      </div>
+                      <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-600 leading-relaxed">
+                        <li>
+                          Sử dụng mẫu chuẩn <strong className="text-slate-800 font-semibold">export_bc_chi_phi_chi_tiet_theo_thang.xlsx</strong> (sheet <em>Gui BMK</em>).
+                        </li>
+                        <li>
+                          Xuất tất cả chi tiết thanh toán của cộng tác viên trong tháng từ collection <code className="bg-slate-100 text-blue-700 font-mono text-[11px] px-1 py-0.5 rounded">bmk_ctv_expense_details</code>.
+                        </li>
+                        <li>
+                          Bao gồm 13 cột: STT, MNV, Họ tên, MST, Thông tin ngân hàng, Thu nhập chịu thuế, Thuế TNCN, Thực lĩnh, Nơi làm việc, Ngày BMK TT, Nội dung TT.
+                        </li>
+                        <li>
+                          Tự động tính dòng <strong className="text-slate-800 font-semibold">TỔNG CỘNG</strong> ở chân bảng.
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <MonthPicker
+                    value={exportDetailsMonth}
+                    onChange={(val) => setExportDetailsMonth(val)}
+                    disabled={isExporting}
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Nhấp vào để chọn năm và tháng cần kết xuất dữ liệu.
+                </p>
+              </div>
+
+              {/* Quick select chips from existing periods in database (6 kỳ gần nhất) */}
+              {periods.length > 0 && (
+                <div className="space-y-2">
+                  <span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                    Các kỳ thanh toán gần nhất:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {periods.slice(0, 6).map((p) => {
+                      const formattedMonth = p.length === 6 ? `${p.slice(0, 4)}-${p.slice(4)}` : p;
+                      const isSelected = exportDetailsMonth === formattedMonth;
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setExportDetailsMonth(formattedMonth)}
+                          disabled={isExporting}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                            isSelected
+                              ? 'bg-rose-500 text-white shadow-xs ring-2 ring-rose-500/30'
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span>Tháng {formatPeriodBadge(p)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-100 bg-slate-50/50 rounded-b-3xl">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isExporting) {
+                    setShowExportDetailsModal(false);
+                  }
+                }}
+                disabled={isExporting}
+                className="rounded-full px-5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmExportDetails}
+                disabled={!exportDetailsMonth || isExporting}
+                className="rounded-full px-6 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-sm transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
+              >
+                {isExporting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Đang xuất file Excel...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>
+                      Xuất chi tiết tháng {exportDetailsMonth ? `${exportDetailsMonth.split('-')[1]}/${exportDetailsMonth.split('-')[0]}` : ''}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* DIALOG XUẤT THANH TOÁN THEO THÁNG (YEAR PICKER & CONFIRM) */}
       {showYearExportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-100 overflow-hidden">
+          <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-100">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl">
               <div className="flex items-center gap-3">
                 <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-4 ring-emerald-500/10">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1477,9 +1741,50 @@ export default function CollaboratorExpensesPage() {
             <div className="p-6 space-y-6">
               {/* Year Picker */}
               <div className="space-y-3">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 text-center">
-                  Chọn năm xuất báo cáo <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-center gap-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Chọn năm xuất báo cáo <span className="text-rose-500">*</span>
+                  </label>
+
+                  {/* Tooltip Icon Information */}
+                  <div className="relative inline-flex items-center group">
+                    <button
+                      type="button"
+                      className="text-blue-600 hover:text-blue-700 focus:outline-hidden transition-colors cursor-pointer p-0.5 rounded-full hover:bg-blue-50"
+                      aria-label="Quy chuẩn xuất báo cáo theo năm"
+                    >
+                      <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+
+                    {/* Tooltip Popover (Light card style matching image 2) */}
+                    <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition-all duration-200 pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-80 sm:w-[380px] p-4 rounded-2xl bg-white text-slate-700 shadow-xl shadow-slate-900/10 border border-slate-200 text-left">
+                      <div className="flex items-center gap-2 pb-2.5 mb-2.5 border-b border-slate-100 text-xs font-bold text-slate-800 tracking-wide">
+                        <span className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                        </span>
+                        <span>QUY CHUẨN XUẤT BÁO CÁO NĂM {exportYear}</span>
+                      </div>
+                      <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-600 leading-relaxed">
+                        <li>
+                          Sử dụng mẫu biểu <strong className="text-slate-800 font-semibold">export_bao_cao_chi_phi_theo_thang.xlsx</strong> (sheet <em>Gui BMK</em>).
+                        </li>
+                        <li>
+                          Tổng hợp chi phí thực nhận của từng CTV theo 12 tháng (Tháng 1 đến Tháng 12) của năm <strong className="text-slate-800 font-semibold">{exportYear}</strong>.
+                        </li>
+                        <li>
+                          <strong className="text-slate-800 font-semibold">Tháng nào CTV không có chi phí sẽ để trống</strong> theo đúng quy định.
+                        </li>
+                        <li>
+                          Tự động tính tổng thực lĩnh cả năm và dòng <strong className="text-slate-800 font-semibold">TỔNG CỘNG</strong> ở chân bảng.
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Main Year Stepper */}
                 <div className="flex items-center justify-center gap-4 bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
@@ -1541,34 +1846,10 @@ export default function CollaboratorExpensesPage() {
                   ))}
                 </div>
               </div>
-
-              {/* Confirmation Notice */}
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-2">
-                <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs uppercase tracking-wider">
-                  <svg className="w-4 h-4 text-emerald-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  <span>Xác nhận thông tin xuất báo cáo năm {exportYear}</span>
-                </div>
-                <ul className="list-disc pl-4 space-y-1.5 text-xs text-emerald-900 leading-relaxed">
-                  <li>
-                    Sử dụng mẫu biểu <strong>export_bao_cao_chi_phi_theo_thang.xlsx</strong>.
-                  </li>
-                  <li>
-                    Tổng hợp chi phí thực nhận của từng CTV theo 12 tháng (Tháng 1 đến Tháng 12) của năm <strong>{exportYear}</strong>.
-                  </li>
-                  <li>
-                    <strong>Tháng nào CTV không có chi phí sẽ để trống</strong> theo đúng quy định.
-                  </li>
-                  <li>
-                    Tự động tính tổng thực lĩnh cả năm và dòng <strong>TỔNG CỘNG</strong> ở chân bảng.
-                  </li>
-                </ul>
-              </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-100 bg-slate-50/50">
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-100 bg-slate-50/50 rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => {
@@ -1657,6 +1938,347 @@ export default function CollaboratorExpensesPage() {
                 className="rounded-xl bg-slate-800 px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-slate-900 transition-all cursor-pointer"
               >
                 Đã hiểu & Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* COLLABORATOR DETAILS DIALOG */}
+      {showCollabDetailModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleCloseCollabDetail();
+          }}
+        >
+          <div className="relative w-full max-w-6xl rounded-3xl bg-white shadow-2xl border border-slate-200 my-auto flex flex-col max-h-[92vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent/10 text-accent">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                </span>
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <h3 className="text-base font-bold text-slate-900">
+                      Chi tiết chi phí cộng tác viên
+                    </h3>
+                    {selectedCollabCode && (
+                      <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                        {selectedCollabCode}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {collabDetailData?.collaborator.fullName
+                      ? `${collabDetailData.collaborator.fullName} • Lịch sử chi trả và thống kê chi phí 12 tháng gần nhất`
+                      : 'Đang tải thông tin chi phí và lịch sử thanh toán...'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCloseCollabDetail}
+                className="rounded-xl p-2 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 transition-colors cursor-pointer"
+                title="Đóng cửa sổ"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {collabDetailLoading ? (
+                <div className="py-24 flex flex-col items-center justify-center gap-3 text-slate-500">
+                  <svg className="animate-spin h-8 w-8 text-accent" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <p className="text-sm font-medium">Đang tải dữ liệu chi tiết của cộng tác viên...</p>
+                </div>
+              ) : collabDetailError ? (
+                <div className="p-6 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-center">
+                  <p className="font-semibold">{collabDetailError}</p>
+                  <button
+                    type="button"
+                    onClick={() => selectedCollabCode && handleOpenCollabDetail(selectedCollabCode)}
+                    className="mt-3 px-4 py-1.5 text-xs font-semibold bg-rose-600 text-white rounded-lg hover:bg-rose-700 cursor-pointer"
+                  >
+                    Thử lại
+                  </button>
+                </div>
+              ) : collabDetailData ? (
+                <>
+                  {/* SECTION 1: Thông tin chung (2 phần: Trái 33% avatar + info, Phải 67% bar chart 12 tháng) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Section 1 • Thông tin chung & Biến động chi phí
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                      {/* Bên trái: Rộng ~33% (lg:col-span-4) - Avatar default + Thông tin CTV */}
+                      <div className="lg:col-span-4 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50/70 via-white to-slate-50/40 p-5 shadow-xs flex flex-col justify-between">
+                        <div>
+                          {/* Avatar default & Name */}
+                          <div className="flex flex-col items-center text-center pb-4 border-b border-slate-100">
+                            <div className="relative mb-3">
+                              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-accent/20 via-sky-100 to-indigo-100 border-2 border-white shadow-md flex items-center justify-center text-accent overflow-hidden">
+                                <svg
+                                  className="w-12 h-12 text-accent/80 translate-y-1"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                                </svg>
+                              </div>
+                              <span
+                                className={`absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full border-2 border-white ${
+                                  collabDetailData.collaborator.offboardDate
+                                    ? 'bg-slate-400'
+                                    : 'bg-emerald-500'
+                                }`}
+                                title={
+                                  collabDetailData.collaborator.offboardDate
+                                    ? 'Đã nghỉ việc'
+                                    : 'Đang hoạt động'
+                                }
+                              />
+                            </div>
+                            <h3 className="font-bold text-slate-900 text-base">
+                              {collabDetailData.collaborator.fullName || '—'}
+                            </h3>
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className="font-mono text-xs font-semibold px-2.5 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20">
+                                {collabDetailData.collaborator.employeeCode}
+                              </span>
+                              {collabDetailData.collaborator.offboardDate ? (
+                                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                                  Đã nghỉ việc
+                                </span>
+                              ) : (
+                                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  Đang cộng tác
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Thông tin chi tiết */}
+                          <div className="mt-4 space-y-2.5 text-xs">
+                            <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-500">Mã số thuế:</span>
+                              <span className="font-mono font-semibold text-slate-800">
+                                {collabDetailData.collaborator.taxCode || 'Chưa cập nhật'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-500">Ngày gia nhập:</span>
+                              <span className="font-mono font-medium text-slate-800">
+                                {collabDetailData.collaborator.onboardDate
+                                  ? formatDate(collabDetailData.collaborator.onboardDate)
+                                  : '—'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-500">Ngày nghỉ việc:</span>
+                              <span className="font-mono font-medium text-slate-800">
+                                {collabDetailData.collaborator.offboardDate
+                                  ? formatDate(collabDetailData.collaborator.offboardDate)
+                                  : '—'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-500">Số đợt chi trả:</span>
+                              <span className="font-mono font-bold text-accent">
+                                {collabDetailData.collaborator.totalPaymentCount} lần
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Thông tin ngân hàng (lấy từ thanh toán gần nhất) */}
+                        <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 p-3.5 text-xs space-y-1.5">
+                          <div className="flex items-center gap-1.5 text-blue-900 font-semibold mb-1">
+                            <svg className="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
+                            <span>Tài khoản ngân hàng (gần nhất)</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-500 text-[11px]">Ngân hàng:</span>
+                            <span
+                              className="font-semibold text-slate-800 text-right text-[11px] max-w-[160px] truncate"
+                              title={collabDetailData.collaborator.bankAccount?.bankName || ''}
+                            >
+                              {collabDetailData.collaborator.bankAccount?.bankName || '—'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-500 text-[11px]">Số tài khoản:</span>
+                            <span className="font-mono font-bold text-blue-700 text-[11px]">
+                              {collabDetailData.collaborator.bankAccount?.accountNumber || '—'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-500 text-[11px]">Chủ tài khoản:</span>
+                            <span className="font-medium text-slate-800 text-[11px]">
+                              {collabDetailData.collaborator.bankAccount?.accountName || '—'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bên phải: Rộng ~67% (lg:col-span-8) - Bar Chart 12 tháng gần nhất */}
+                      <div className="lg:col-span-8 flex flex-col">
+                        <CollaboratorExpenseHistoryBarChart
+                          data={collabDetailData.monthlyStats}
+                          loading={collabDetailLoading}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SECTION 2: Danh sách chi tiết thanh toán của CTV (sort theo ngày BMK thanh toán và số tiền) */}
+                  <div className="rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-b border-slate-100 bg-slate-50/70">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-slate-900">
+                          Section 2 • Danh sách chi tiết thanh toán
+                        </h4>
+                        <span className="rounded-full bg-slate-200 px-2.5 py-0.5 font-mono text-xs font-bold text-slate-700">
+                          {collabDetailData.paymentDetails.length} giao dịch
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-medium text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-lg">
+                        ↓ Sắp xếp giảm dần theo ngày BMK thanh toán & số tiền
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead className="sticky top-0 bg-slate-100/95 backdrop-blur-xs z-10 text-[11px] font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200">
+                          <tr>
+                            <th className="py-2.5 px-3 text-center w-12">STT</th>
+                            <th className="py-2.5 px-3 text-center">Ngày BMK TT</th>
+                            <th className="py-2.5 px-3 text-center">Kỳ TT</th>
+                            <th className="py-2.5 px-3">Nơi làm việc</th>
+                            <th className="py-2.5 px-3 text-right">Tổng TN chịu thuế</th>
+                            <th className="py-2.5 px-3 text-right">Thuế TNCN</th>
+                            <th className="py-2.5 px-3 text-right">Thực lĩnh</th>
+                            <th className="py-2.5 px-3">Tài khoản nhận</th>
+                            <th className="py-2.5 px-3">Nội dung thanh toán</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-sans">
+                          {collabDetailData.paymentDetails.length === 0 ? (
+                            <tr>
+                              <td colSpan={9} className="py-8 text-center text-slate-400">
+                                Chưa có bản ghi chi tiết thanh toán nào cho cộng tác viên này
+                              </td>
+                            </tr>
+                          ) : (
+                            collabDetailData.paymentDetails.map((detail, dIdx) => (
+                              <tr key={detail.id || dIdx} className="hover:bg-slate-50/80 transition-colors">
+                                <td className="py-2.5 px-3 text-center font-mono text-slate-400">
+                                  {dIdx + 1}
+                                </td>
+                                <td className="py-2.5 px-3 text-center font-mono text-slate-700 whitespace-nowrap">
+                                  {formatDate(detail.paymentDate)}
+                                </td>
+                                <td className="py-2.5 px-3 text-center">
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-medium text-slate-700 border border-slate-200 whitespace-nowrap">
+                                    {formatPeriodBadge(detail.period)}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
+                                  {detail.workLocation || '—'}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono text-slate-700 whitespace-nowrap">
+                                  {formatVND(detail.taxableIncome)}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono text-rose-600 whitespace-nowrap">
+                                  {detail.personalIncomeTax > 0 ? formatVND(detail.personalIncomeTax) : '—'}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono font-bold text-accent whitespace-nowrap">
+                                  {formatVND(detail.netIncome)}
+                                </td>
+                                <td className="py-2.5 px-3 text-slate-700">
+                                  <div className="font-mono text-[11px] font-semibold text-slate-800">
+                                    {detail.bankAccount?.accountNumber || '—'}
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 truncate max-w-[140px]">
+                                    {detail.bankAccount?.bankName}
+                                  </div>
+                                </td>
+                                <td className="py-2.5 px-3 text-slate-600 max-w-xs truncate" title={detail.paymentContent || ''}>
+                                  {detail.paymentContent || '—'}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                        {/* Table summary footer */}
+                        {collabDetailData.paymentDetails.length > 0 && (
+                          <tfoot className="sticky bottom-0 bg-slate-100/95 backdrop-blur-xs border-t-2 border-slate-300 font-bold text-xs">
+                            <tr>
+                              <td colSpan={4} className="py-2.5 px-3 text-center text-slate-800">
+                                TỔNG CỘNG ({collabDetailData.paymentDetails.length} giao dịch)
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono text-slate-900 whitespace-nowrap">
+                                {formatVND(
+                                  collabDetailData.paymentDetails.reduce(
+                                    (sum, item) => sum + (item.taxableIncome || 0),
+                                    0
+                                  )
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono text-rose-600 whitespace-nowrap">
+                                {formatVND(
+                                  collabDetailData.paymentDetails.reduce(
+                                    (sum, item) => sum + (item.personalIncomeTax || 0),
+                                    0
+                                  )
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono text-accent whitespace-nowrap">
+                                {formatVND(
+                                  collabDetailData.paymentDetails.reduce(
+                                    (sum, item) => sum + (item.netIncome || 0),
+                                    0
+                                  )
+                                )}
+                              </td>
+                              <td colSpan={2} className="py-2.5 px-3"></td>
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/70">
+              <button
+                type="button"
+                onClick={handleCloseCollabDetail}
+                className="rounded-xl px-5 py-2 text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 shadow-2xs transition-colors cursor-pointer"
+              >
+                Đóng
               </button>
             </div>
           </div>

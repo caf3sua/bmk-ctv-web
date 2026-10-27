@@ -4,6 +4,7 @@ import type {
   ExpenseImportResponse,
   PaginatedExpenseDetails,
   PaginatedExpenseCollaborators,
+  CollaboratorExpenseDetailResponse,
 } from '../../types/expense';
 
 export interface ExpenseDetailsFilter {
@@ -96,3 +97,12 @@ export async function importExpenseFile(
     body: formData,
   });
 }
+
+export async function getCollaboratorExpenseDetail(
+  employeeCode: string
+): Promise<CollaboratorExpenseDetailResponse> {
+  return apiFetch<CollaboratorExpenseDetailResponse>(
+    `/expenses/collaborators/${encodeURIComponent(employeeCode)}`
+  );
+}
+

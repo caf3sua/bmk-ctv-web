@@ -93,3 +93,31 @@ export interface PaginatedExpenseCollaborators {
   page_size: number;
   total_pages: number;
 }
+
+export interface CollaboratorMonthlyExpenseStat {
+  period: string;
+  label: string;
+  taxableIncome: number;
+  personalIncomeTax: number;
+  netIncome: number;
+  count: number;
+}
+
+export interface CollaboratorInfoDetail {
+  employeeCode: string;
+  fullName: string;
+  taxCode?: string;
+  onboardDate?: string | null;
+  offboardDate?: string | null;
+  totalPaymentCount: number;
+  latestPaymentDate?: string | null;
+  latestPeriod?: string | null;
+  bankAccount: BankAccountInfo;
+}
+
+export interface CollaboratorExpenseDetailResponse {
+  collaborator: CollaboratorInfoDetail;
+  monthlyStats: CollaboratorMonthlyExpenseStat[];
+  paymentDetails: ExpenseDetailItem[];
+}
+
