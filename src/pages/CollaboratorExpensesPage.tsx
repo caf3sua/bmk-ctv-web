@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
 import MonthPicker from '../components/MonthPicker';
-import CollaboratorMonthlyCountBarChart from '../components/charts/CollaboratorMonthlyCountBarChart';
-import PaymentMonthlyAmountBarChart from '../components/charts/PaymentMonthlyAmountBarChart';
-import CollaboratorExpenseHistoryBarChart from '../components/charts/CollaboratorExpenseHistoryBarChart';
+import CollaboratorMonthlyCountLineChart from '../components/charts/CollaboratorMonthlyCountLineChart';
+import PaymentMonthlyAmountLineChart from '../components/charts/PaymentMonthlyAmountLineChart';
+import ExpenseBreakdownPieChart from '../components/charts/ExpenseBreakdownPieChart';
+import CollaboratorExpenseHistoryLineChart from '../components/charts/CollaboratorExpenseHistoryLineChart';
 import {
   downloadExpenseTemplate,
   exportExpenseData,
@@ -49,6 +50,26 @@ export default function CollaboratorExpensesPage() {
   // Stats state
   const [stats, setStats] = useState<ExpenseStatsResponse | null>(null);
   const [statsLoading, setStatsLoading] = useState<boolean>(true);
+
+  // Time range for charts: '12m' (12 tháng gần nhất - default) | 'all' (Toàn bộ các tháng)
+  const [chartsTimeRange, setChartsTimeRange] = useState<'12m' | 'all'>('12m');
+
+  // Breakdown figures for Pie Chart synchronized with chartsTimeRange
+  const displayedBreakdownTotals = useMemo(() => {
+    const raw = stats?.paymentAmountsByMonth || [];
+    if (chartsTimeRange === 'all' || raw.length <= 12) {
+      return {
+        paid: stats?.totalPaidAmount || 0,
+        taxable: stats?.totalTaxableAmount || 0,
+        tax: stats?.totalTaxAmount || 0,
+      };
+    }
+    const slice12 = raw.slice(-12);
+    const paid = slice12.reduce((sum, d) => sum + (d.totalNetIncome || 0), 0);
+    const taxable = slice12.reduce((sum, d) => sum + (d.totalTaxableIncome || 0), 0);
+    const tax = slice12.reduce((sum, d) => sum + (d.totalPersonalIncomeTax || 0), 0);
+    return { paid, taxable, tax };
+  }, [chartsTimeRange, stats]);
 
   // Filter options
   const [periods, setPeriods] = useState<string[]>([]);
@@ -755,8 +776,8 @@ export default function CollaboratorExpensesPage() {
           </div>
         )}
 
-        {/* 4 KPI Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 3 KPI Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {/* Card 1: Tổng thực lĩnh */}
           <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs hover:border-slate-300 transition-all">
             <div className="flex items-center justify-between">
@@ -823,40 +844,7 @@ export default function CollaboratorExpensesPage() {
             </div>
           </div>
 
-          {/* Card 3: Tổng số CTV đã nhận thanh toán */}
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs hover:border-slate-300 transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                Cộng tác viên nhận tiền
-              </span>
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.8}
-                  stroke="currentColor"
-                  className="h-4 w-4"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
-                  />
-                </svg>
-              </span>
-            </div>
-            <div className="mt-3">
-              <div className="text-xl sm:text-2xl font-bold font-mono text-slate-900">
-                {statsLoading ? '...' : (stats?.totalCollaborators || 0).toLocaleString('vi-VN')}
-              </div>
-              <p className="mt-1 text-xs text-slate-400">
-                Tổng {stats?.totalPaymentTransactions || 0} lượt giao dịch
-              </p>
-            </div>
-          </div>
-
-          {/* Card 4: Kỳ thanh toán gần nhất */}
+          {/* Card 3: Kỳ thanh toán gần nhất */}
           <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs hover:border-slate-300 transition-all">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
@@ -890,21 +878,139 @@ export default function CollaboratorExpensesPage() {
           </div>
         </div>
 
-        {/* 2 Charts in a 2-Column Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
-            <CollaboratorMonthlyCountBarChart
+        {/* Hàng 1: Line Chart Số tiền BMK thanh toán theo tháng (66%) + Pie Chart Thực lĩnh & Thuế TNCN (33%) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+            <PaymentMonthlyAmountLineChart
+              data={stats?.paymentAmountsByMonth || []}
+              totalPaidAmount={stats?.totalPaidAmount || 0}
+              totalTaxableAmount={stats?.totalTaxableAmount || 0}
+              totalTaxAmount={stats?.totalTaxAmount || 0}
+              loading={statsLoading}
+              timeRange={chartsTimeRange}
+              onTimeRangeChange={setChartsTimeRange}
+            />
+          </div>
+          <div className="lg:col-span-1 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+            <ExpenseBreakdownPieChart
+              totalPaidAmount={displayedBreakdownTotals.paid}
+              totalTaxAmount={displayedBreakdownTotals.tax}
+              totalTaxableAmount={displayedBreakdownTotals.taxable}
+              loading={statsLoading}
+              timeRange={chartsTimeRange}
+            />
+          </div>
+        </div>
+
+        {/* Hàng 2: Line Chart Số CTV được thanh toán theo tháng (66%) + Card Cộng tác viên nhận tiền (33%) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+            <CollaboratorMonthlyCountLineChart
               data={stats?.collaboratorCountsByMonth || []}
               totalCollaborators={stats?.totalCollaborators || 0}
               loading={statsLoading}
+              timeRange={chartsTimeRange}
+              onTimeRangeChange={setChartsTimeRange}
             />
           </div>
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
-            <PaymentMonthlyAmountBarChart
-              data={stats?.paymentAmountsByMonth || []}
-              totalPaidAmount={stats?.totalPaidAmount || 0}
-              loading={statsLoading}
-            />
+          <div className="lg:col-span-1 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs flex flex-col justify-between">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-border-subtle/60 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-slate-800 text-sm sm:text-base">
+                    Cộng tác viên nhận tiền
+                  </h3>
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                    Đối tượng
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Thống kê đối tượng thụ hưởng chi phí BMK
+                </p>
+              </div>
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.8}
+                  stroke="currentColor"
+                  className="h-5 w-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
+                  />
+                </svg>
+              </span>
+            </div>
+
+            {/* Big Stat Callout */}
+            <div className="my-auto py-5 text-center">
+              <div className="inline-flex items-baseline gap-2">
+                <span className="text-4xl sm:text-5xl font-extrabold font-mono text-slate-900 tracking-tight">
+                  {statsLoading ? '...' : (stats?.totalCollaborators || 0).toLocaleString('vi-VN')}
+                </span>
+                <span className="text-base font-semibold text-emerald-600">CTV</span>
+              </div>
+              <p className="mt-1.5 text-xs text-slate-500 font-medium">
+                Cộng tác viên đã nhận ít nhất 1 đợt thanh toán từ BMK
+              </p>
+            </div>
+
+            {/* Sub-metrics */}
+            <div className="space-y-2 border-t border-slate-100 pt-3 text-xs">
+              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/70 hover:bg-slate-50 transition-colors">
+                <span className="text-slate-600 flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  Tổng lượt thanh toán:
+                </span>
+                <strong className="font-mono font-bold text-slate-900">
+                  {statsLoading ? '...' : (stats?.totalPaymentTransactions || 0).toLocaleString('vi-VN')} lượt
+                </strong>
+              </div>
+
+              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/70 hover:bg-slate-50 transition-colors">
+                <span className="text-slate-600 flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                  Tần suất nhận tiền bình quân:
+                </span>
+                <strong className="font-mono font-bold text-blue-700">
+                  {stats && stats.totalCollaborators > 0
+                    ? `${(stats.totalPaymentTransactions / stats.totalCollaborators).toFixed(1)} lần / CTV`
+                    : '—'}
+                </strong>
+              </div>
+
+              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/70 hover:bg-slate-50 transition-colors">
+                <span className="text-slate-600 flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  Kỳ gần nhất:
+                </span>
+                <strong className="font-mono font-bold text-amber-700">
+                  {stats?.latestPeriod ? formatPeriodBadge(stats.latestPeriod) : '—'}
+                </strong>
+              </div>
+            </div>
+
+            {/* Quick Action Button to Collaborators Table */}
+            <div className="mt-4 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('collaborators');
+                  setCollabsPage(1);
+                }}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 py-2 px-3 text-xs font-semibold transition-all cursor-pointer border border-emerald-200 shadow-2xs"
+              >
+                <span>Xem danh sách chi phí CTV</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -2140,9 +2246,9 @@ export default function CollaboratorExpensesPage() {
                         </div>
                       </div>
 
-                      {/* Bên phải: Rộng ~67% (lg:col-span-8) - Bar Chart 12 tháng gần nhất */}
+                      {/* Bên phải: Rộng ~67% (lg:col-span-8) - Line Chart 12 tháng gần nhất */}
                       <div className="lg:col-span-8 flex flex-col">
-                        <CollaboratorExpenseHistoryBarChart
+                        <CollaboratorExpenseHistoryLineChart
                           data={collabDetailData.monthlyStats}
                           loading={collabDetailLoading}
                         />
